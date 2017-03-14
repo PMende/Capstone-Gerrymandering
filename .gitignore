@@ -1,3 +1,4 @@
-election_data/*
+data/*
 *_.ipynb
 .ipynb_checkpoints/
+*_.md
