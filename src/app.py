@@ -13,6 +13,9 @@ app = Flask(__name__)
 
 PORT = 8090
 
+KMEANS_SHP_FILE = '../data/districts/'
+GMAPS_API_KEY = os.environ['GMAPS_API_KEY']
+
 @app.route('/')
 def main():
     return render_template('main.html')
