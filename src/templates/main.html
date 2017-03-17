@@ -22,80 +22,34 @@
       var map;
       function initMap() {
         var mapDiv = document.getElementById('map');
+        var empty_style = [{
+            featureType: "all",
+            stylers: [
+              { visibility: "off" }
+            ]
+        }];
+        var data_style = [{
+          fillColor: 'red',
+          strokeWeight: 2,
+          clickable: true
+        }]
+
         map = new google.maps.Map(mapDiv, {
-            backgroundColor: '#FFFFFF',
-            center: {lat: 44.437778, lng: -90.130186},
-            zoom: 6,
-            mapTypeControl: false,
-            scaleControl: false,
-            streetViewControl: false,
-            zoomControl: false,
-            minZoom: 6,
-            maxZoom: 9,
-            keyboardShortcuts: false
+          backgroundColor: '#FFFFFF',
+          center: {lat: 44.6397, lng: -90.01772},
+          zoom: 7,
+          mapTypeControl: false,
+          scaleControl: false,
+          streetViewControl: false,
+          zoomControl: false,
+          minZoom: 7,
+          maxZoom: 10,
+          keyboardShortcuts: false
         });
-        map.data.setStyle({
-          icon: {
-            path: google.maps.SymbolPath.CIRCLE,
-            fillColor: 'blue',
-            fillOpacity: 0.7,
-            scale: 3,
-            strokeWeight: 0,
-          },
-          strokeColor: 'purple',
-          strokeOpacity: 0.5,
-        });
-        var empty_style = [
-          {
-            featureType: "all",
-            stylers: [
-              { visibility: "off" }
-            ]
-          }
-        ];
-        var styles = [
-          {
-            stylers: [
-              { hue: "#DBA" },
-              { saturation: -80 }
-            ]
-          },{
-            featureType: "road",
-            elementType: "geometry",
-            stylers: [
-              { visibility: "off" }
-            ]
-          },{
-            featureType: "road",
-            elementType: "labels",
-            stylers: [
-              { visibility: "off" }
-            ]
-          },{
-            featureType: "administrative",
-            elementType: "labels",
-            stylers: [
-              { visibility: "off" }
-            ]
-          },{
-            featureType: "poi",
-            stylers: [
-              { visibility: "off" }
-            ]
-          },{
-            featureType: "transit",
-            stylers: [
-              { visibility: "off" }
-            ]
-          },{
-            featureType: "all",
-            elementType: "labels",
-            stylers: [
-              { visibility: "off" }
-            ]
-          }
-        ];
+
+        map.data.loadGeoJson("{{kmeans_geojson}}");
         map.setOptions({styles: empty_style});
+        map.data.setStyle(data_style)
       }
     </script>
 
@@ -103,8 +57,10 @@
       /* Always set the map height explicitly to define the size of the div
        * element that contains the map. */
       #map {
-        height: 500px;
-        width: 500px;
+        height: 800px;
+        width: 750px;
+        margin-left: auto;
+        margin-right: auto
       }
       /* Optional: Makes the sample page fill the window. */
       html, body {
@@ -117,14 +73,14 @@
 </head>
 
 <body>
-  <div id="map"></div>
-  <script src={{maplink}} async="" defer=""></script>
+
   <div class="container">
     <center>
     <h1>Ecclesia</h1>
 
     <div class="row">
-      Test
+      <div id="map"></div>
+      <script src={{maplink}} async="" defer=""></script>
     </div>
     </center>
 

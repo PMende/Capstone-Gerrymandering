@@ -14,7 +14,7 @@ app = Flask(__name__)
 PORT = 8090
 
 KMEANS_GEOJSON = (
-    '../data/districts/generated/kmeans/kmeans_districts.json'
+    'static/geojson/kmeans_districts.json'
 )
 GMAPS_API_KEY = os.environ['GMAPS_API_KEY']
 GMAPS_LINK = (
