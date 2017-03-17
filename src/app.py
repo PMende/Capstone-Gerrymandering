@@ -15,10 +15,16 @@ PORT = 8090
 
 KMEANS_SHP_FILE = '../data/districts/'
 GMAPS_API_KEY = os.environ['GMAPS_API_KEY']
+GMAPS_LINK = (
+    "https://maps.googleapis.com/maps/api/" +
+    "js?key={}&callback=initMap".format(GMAPS_API_KEY)
+)
+
 
 @app.route('/')
 def main():
-    return render_template('main.html')
+    print(GMAPS_LINK)
+    return render_template('main.html', maplink = GMAPS_LINK)
 
 
 if __name__ == '__main__':
