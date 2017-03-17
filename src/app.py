@@ -13,7 +13,9 @@ app = Flask(__name__)
 
 PORT = 8090
 
-KMEANS_SHP_FILE = '../data/districts/'
+KMEANS_GEOJSON = (
+    '../data/districts/generated/kmeans/kmeans_districts.json'
+)
 GMAPS_API_KEY = os.environ['GMAPS_API_KEY']
 GMAPS_LINK = (
     "https://maps.googleapis.com/maps/api/" +
@@ -21,10 +23,14 @@ GMAPS_LINK = (
 )
 
 
+
 @app.route('/')
 def main():
-    print(GMAPS_LINK)
-    return render_template('main.html', maplink = GMAPS_LINK)
+    print(KMEANS_GEOJSON)
+    return render_template(
+        'main.html', maplink = GMAPS_LINK,
+        kmeans_geojson = KMEANS_GEOJSON
+    )
 
 
 if __name__ == '__main__':
