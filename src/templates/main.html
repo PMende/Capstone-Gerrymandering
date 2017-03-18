@@ -30,30 +30,32 @@
         }];
         var data_style = [{
           fillColor: 'red',
-          strokeWeight: 2,
+          strokeWeight: 1,
           clickable: true
         }];
 
         var c_wisconsin = {lat: 44.6397, lng: -90.01772};
+        var min_zoom = 7;
 
         map = new google.maps.Map(mapDiv, {
           backgroundColor: '#FFFFFF',
           center: c_wisconsin,
-          zoom: 7,
+          zoom: min_zoom,
           mapTypeControl: false,
           scaleControl: false,
           streetViewControl: false,
           zoomControl: false,
-          minZoom: 7,
+          minZoom: min_zoom,
           maxZoom: 10,
           keyboardShortcuts: false,
-          disableDoubleClickZoom: true
+          disableDoubleClickZoom: true,
+          draggable: false
         });
 
-        // Bounds for North America
+        // Bounds for Wisconsin
         var strictBounds = new google.maps.LatLngBounds(
           new google.maps.LatLng(42.4919, -92.8894),
-          new google.maps.LatLng(47.0808, -86.9)
+          new google.maps.LatLng(47.0808, -86.763)
         );
 
         // Listen for the dragend event
@@ -61,7 +63,6 @@
           if (strictBounds.contains(map.getCenter())) return;
 
           // We're out of bounds - Move the map back within the bounds
-
           var c = map.getCenter(),
             x = c.lng(),
             y = c.lat(),
@@ -69,11 +70,12 @@
             maxY = strictBounds.getNorthEast().lat(),
             minX = strictBounds.getSouthWest().lng(),
             minY = strictBounds.getSouthWest().lat();
+          var limit_padding = 0.5
 
-          if (x < minX) x = minX;
-          if (x > maxX) x = maxX;
-          if (y < minY) y = minY;
-          if (y > maxY) y = maxY;
+          if (x < minX) x = minX + limit_padding;
+          if (x > maxX) x = maxX - limit_padding;
+          if (y < minY) y = minY + limit_padding;
+          if (y > maxY) y = maxY - limit_padding;
 
           map.setCenter(new google.maps.LatLng(y, x));
         });
@@ -83,15 +85,32 @@
           map.setCenter(c_wisconsin);
         });
 
-        // zoom out event
-        google.maps.event.addListener(map, 'dblclick', function() {
-          map.setCenter(c_wisconsin);
-        // if you don't do this, the map will zoom in
+        // on zoom out event to min zoom, reset center
+        google.maps.event.addListener(map, 'zoom_changed', function() {
+          var zoom_level = map.getZoom();
+          if (zoom_level == min_zoom) {
+            map.setCenter(c_wisconsin);
+          }
         });
 
+        // on zoom change event to min zoom, reset center
+        google.maps.event.addListener(map, 'dragend', function() {
+          var zoom_level = map.getZoom();
+          if (zoom_level == min_zoom) {
+            map.setCenter(c_wisconsin)
+          }
+        });
+
+        // on zoom change event to min zoom, set draggable
+        google.maps.event.addListener(map, 'zoom_changed', function() {
+          map.setOptions({
+            draggable : map.getZoom() > min_zoom
+          });
+        })
+
+        map.data.setStyle(data_style);
         map.data.loadGeoJson("{{kmeans_geojson}}");
         map.setOptions({styles: empty_style});
-        map.data.setStyle(data_style)
       }
     </script>
 

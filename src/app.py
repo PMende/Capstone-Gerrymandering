@@ -26,9 +26,8 @@ GMAPS_LINK = (
 
 @app.route('/')
 def main():
-    print(KMEANS_GEOJSON)
     return render_template(
-        'main.html', maplink = GMAPS_LINK,
+        'index.html', maplink = GMAPS_LINK,
         kmeans_geojson = KMEANS_GEOJSON
     )
 
