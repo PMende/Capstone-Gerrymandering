@@ -32,11 +32,13 @@
           fillColor: 'red',
           strokeWeight: 2,
           clickable: true
-        }]
+        }];
+
+        var c_wisconsin = {lat: 44.6397, lng: -90.01772};
 
         map = new google.maps.Map(mapDiv, {
           backgroundColor: '#FFFFFF',
-          center: {lat: 44.6397, lng: -90.01772},
+          center: c_wisconsin,
           zoom: 7,
           mapTypeControl: false,
           scaleControl: false,
@@ -44,7 +46,47 @@
           zoomControl: false,
           minZoom: 7,
           maxZoom: 10,
-          keyboardShortcuts: false
+          keyboardShortcuts: false,
+          disableDoubleClickZoom: true
+        });
+
+        // Bounds for North America
+        var strictBounds = new google.maps.LatLngBounds(
+          new google.maps.LatLng(42.4919, -92.8894),
+          new google.maps.LatLng(47.0808, -86.9)
+        );
+
+        // Listen for the dragend event
+        google.maps.event.addListener(map, 'dragend', function() {
+          if (strictBounds.contains(map.getCenter())) return;
+
+          // We're out of bounds - Move the map back within the bounds
+
+          var c = map.getCenter(),
+            x = c.lng(),
+            y = c.lat(),
+            maxX = strictBounds.getNorthEast().lng(),
+            maxY = strictBounds.getNorthEast().lat(),
+            minX = strictBounds.getSouthWest().lng(),
+            minY = strictBounds.getSouthWest().lat();
+
+          if (x < minX) x = minX;
+          if (x > maxX) x = maxX;
+          if (y < minY) y = minY;
+          if (y > maxY) y = maxY;
+
+          map.setCenter(new google.maps.LatLng(y, x));
+        });
+
+        // move to center on double click
+        google.maps.event.addListener(map, 'dblclick', function() {
+          map.setCenter(c_wisconsin);
+        });
+
+        // zoom out event
+        google.maps.event.addListener(map, 'dblclick', function() {
+          map.setCenter(c_wisconsin);
+        // if you don't do this, the map will zoom in
         });
 
         map.data.loadGeoJson("{{kmeans_geojson}}");
@@ -57,10 +99,10 @@
       /* Always set the map height explicitly to define the size of the div
        * element that contains the map. */
       #map {
-        height: 800px;
+        height: 750px;
         width: 750px;
         margin-left: auto;
-        margin-right: auto
+        margin-right: auto;
       }
       /* Optional: Makes the sample page fill the window. */
       html, body {
