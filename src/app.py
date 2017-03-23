@@ -31,6 +31,12 @@ def main():
         kmeans_geojson = KMEANS_GEOJSON
     )
 
+@app.route('/map')
+def map():
+    return render_template(
+        'main.html', maplink = GMAPS_LINK,
+        kmeans_geojson = KMEANS_GEOJSON
+    )
 
 if __name__ == '__main__':
     # Start Flask app
