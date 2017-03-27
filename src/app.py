@@ -7,6 +7,7 @@ import os
 import requests
 import json
 from itertools import cycle
+from ast import literal_eval
 
 from flask import (
     Flask,
@@ -40,12 +41,16 @@ app = Flask(__name__)
 
 PORT = 8090
 
+CURRENT_GEOJSON = (
+    './static/geojson/current_districts.json'
+)
 KMEANS_GEOJSON = (
     './static/geojson/kmeans_districts.json'
 )
 ALL_GEOJSON = {
     'kmeans': KMEANS_GEOJSON
 }
+
 GMAPS_API_KEY = os.environ['GMAPS_API_KEY']
 GMAPS_LINK = (
     "https://maps.googleapis.com/maps/api/" +
@@ -171,55 +176,17 @@ def polynomial():
         'popdiff': LinearColorMapper(
             palette = bokeh.palettes.brewer['RdBu'][11])
     }
+    current_mapper = colors_dict['id']
 
     json_patches = fig.patches(
         xs='xs', ys='ys', line_color='black',
         line_width=1, source = geo_sources['kmeans'],
         fill_color = {
             'field': 'id',
-            'transform': colors_dict['id']}
-    )
-
-    type_select = Select(
-        title = "District Type",
-        options = [
-            ('current', 'Current Districts'),
-            ('kmeans', 'Naive KMeans'),
-            ('sskmeans', 'SameSizeKMeans')
-        ], width = int(750/2),
-        # callback = callback_type
+            'transform': current_mapper}
     )
 
     callback_type = CustomJS(
-        args = dict(
-            renderer = json_patches,
-            select = type_select
-        ),
-        code = """
-
-        """
-    )
-
-    # callback_type = CustomJS(
-    #     args = dict(
-    #         source = geo_source,
-    #         current_source = geo_sources['kmeans'],
-    #         kmeans_source = geo_sources['kmeans'],
-    #         sskmeans_sources = geo_sources['kmeans']
-    #     ),
-    #     code = """
-    #         var geojson = source.geojson;
-    #         var f = cb_obj.value;
-    #         if (f == 'kmeans') {
-    #             geojson = kmeans_source;
-    #         } else {
-    #             geojson = kmeans_source;
-    #         };
-    #         source.trigger('change');
-    #     """
-    # )
-
-    callback_info = CustomJS(
         args = dict(
             source = geo_source,
             current_source = geo_sources['kmeans'],
@@ -227,19 +194,74 @@ def polynomial():
             sskmeans_sources = geo_sources['kmeans']
         ),
         code = """
-            var current_selection =
             var geojson = source.geojson;
             var f = cb_obj.value;
+            if (f == 'kmeans') {
+                geojson = kmeans_source;
+            } else {
+                geojson = kmeans_source;
+            };
             source.trigger('change');
         """
     )
+    type_select = Select(
+        title = "District Type",
+        options = [
+            ('current', 'Current Districts'),
+            ('kmeans', 'Naive KMeans'),
+            ('sskmeans', 'SameSizeKMeans')
+        ], width = int(750/2),
+        callback = callback_type
+    )
+
+    callback_info = CustomJS(
+        args = dict(
+            renderer = json_patches,
+            current_mapper = current_mapper,
+            mapper_dist = colors_dict['id'],
+            mapper_cmpctness = colors_dict['cmpctness'],
+            mapper_popdiff = colors_dict['popdiff']
+        ),
+        code = """
+            var f = cb_obj.value;
+            if (f == 'id') {
+                var new_mapper = mapper_dist;
+            } else if (f == 'cmpctness') {
+                var new_mapper = mapper_cmpctness;
+            } else if (f == 'popdiff') {
+                var new_mapper = mapper_popdiff;
+            };
+            console.log(f);
+            console.log(renderer.glyph.fill_color.field);
+            renderer.glyph.fill_color['field'] =  f;
+            renderer.glyph.fill_color['transform'] = new_mapper;
+            if (new_mapper == current_mapper) {
+                console.log('bloop');
+            }
+            current_mapper = new_mapper;
+            if (new_mapper == current_mapper) {
+                console.log('bloop');
+            }
+            current_mapper.trigger('change');
+            renderer.trigger('change');
+        """
+    )
+    # if (f == 'id') {
+    #     var new_mapper = mapper_dist;
+    # } elif (f == 'cmpctness') {
+    #     var new_mapper = mapper_cmpctness;
+    # } else {
+    #     var new_mapper = mapper_dist;
+    # };
+    # renderer.trigger('change');
     info_select = Select(
         title = "District information",
         options = [
             ('id', 'Districts (Categorical)'),
             ('cmpctness', 'Compactness'),
             ('popdiff', 'Population Variance')
-        ], width = int(750/2)
+        ], width = int(750/2),
+        callback = callback_info
     )
 
     js_resources = INLINE.render_js()
