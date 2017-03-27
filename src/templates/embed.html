@@ -16,24 +16,21 @@
   <body>
     <!-- A simple form for changing the graph -->
     <p> Select your settings: </p>
-    <form name="color_button" method='GET'>
-        Color:
-        <select name="color">
-            <option {{ "selected" if color|indent(4)|safe == "Red" }} value="Red">Red</option>
-            <option {{ "selected" if color|indent(4)|safe == "Green" }} value="Green">Green</option>
-            <option {{ "selected" if color|indent(4)|safe == "Blue" }} value="Blue">Blue</option>
-            <option {{ "selected" if color|indent(4)|safe == "Black" }} value="Black">Black</option>
+    <form name="plot_option" method='GET'>
+        District type:
+        <select name="disttype">
+            <option {{ "selected" if disttype|indent(4)|safe == "current" }} value="current">Current</option>
+            <option {{ "selected" if disttype|indent(4)|safe == "kmeans" }} value="kmeans">Naive KMeans</option>
+            <option {{ "selected" if disttype|indent(4)|safe == "sskmeans" }} value="sskmeans">SameSizeKMeans</option>
         </select>
-        <br>
-        From:
-        <input type="text" name="_from" value="{{ _from }}">
-        <br>
-        To:
-        <input type="text" name="to" value="{{ to }}">
-        <br>
+        District information:
+        <select name="distinfo">
+            <option {{ "selected" if distinfo|indent(4)|safe == "id" }} value="id">Districts</option>
+            <option {{ "selected" if distinfo|indent(4)|safe == "cmpctness" }} value="cmpctness">Compactness</option>
+            <option {{ "selected" if distinfo|indent(4)|safe == "popdiff" }} value="popdiff">Populaton Variance</option>
+        </select>
         <button type="submit">Submit</button>
     </form>
     {{ plot_div|indent(4)|safe }}
-    <p> Demonstrates some very simple embedding into a webpage</p>
   </body>
 </html>
