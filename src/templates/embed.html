@@ -15,22 +15,6 @@
   </head>
   <body>
     <!-- A simple form for changing the graph -->
-    <p> Select your settings: </p>
-    <form name="plot_option" method='GET'>
-        District type:
-        <select name="disttype">
-            <option {{ "selected" if disttype|indent(4)|safe == "current" }} value="current">Current</option>
-            <option {{ "selected" if disttype|indent(4)|safe == "kmeans" }} value="kmeans">Naive KMeans</option>
-            <option {{ "selected" if disttype|indent(4)|safe == "sskmeans" }} value="sskmeans">SameSizeKMeans</option>
-        </select>
-        District information:
-        <select name="distinfo">
-            <option {{ "selected" if distinfo|indent(4)|safe == "id" }} value="id">Districts</option>
-            <option {{ "selected" if distinfo|indent(4)|safe == "cmpctness" }} value="cmpctness">Compactness</option>
-            <option {{ "selected" if distinfo|indent(4)|safe == "popdiff" }} value="popdiff">Populaton Variance</option>
-        </select>
-        <button type="submit">Submit</button>
-    </form>
     {{ plot_div|indent(4)|safe }}
   </body>
 </html>

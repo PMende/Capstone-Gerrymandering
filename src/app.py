@@ -41,14 +41,15 @@ app = Flask(__name__)
 
 PORT = 8090
 
-CURRENT_GEOJSON = (
-    './static/geojson/current_districts.json'
+SSKMEANS_GEOJSON = (
+    './static/geojson/sskmeans_districts.json'
 )
 KMEANS_GEOJSON = (
     './static/geojson/kmeans_districts.json'
 )
 ALL_GEOJSON = {
-    'kmeans': KMEANS_GEOJSON
+    'kmeans': KMEANS_GEOJSON,
+    'sskmeans': SSKMEANS_GEOJSON
 }
 
 GMAPS_API_KEY = os.environ['GMAPS_API_KEY']
@@ -94,25 +95,17 @@ def polynomial():
     # Grab the inputs arguments from the URL
     args = request.args
 
-    # Get all the form arguments in the url with defaults
-    disttype = 'current'
-    distinfo = 'id'
-
-
-    def_palette = bokeh.palettes.brewer['Set1'][8]
-    def_colors = LinearColorMapper(palette=def_palette)
-    def_fill_color_dict = {'field': 'id', 'transform': def_colors}
-
     # Load GeoJSON sources into a dictionary
-    geo_sources = {key: None for key in ALL_GEOJSON}
-    for key in geo_sources:
-        with open(ALL_GEOJSON[key], 'r') as f:
-            geo_sources[key] = GeoJSONDataSource(
-                geojson = f.read()
-            )
+    geo_sources = {}
+    with open(KMEANS_GEOJSON, 'r') as f:
+        geo_sources['kmeans'] = f.read()
+    with open(SSKMEANS_GEOJSON, 'r') as f:
+        geo_sources['sskmeans'] = f.read()
 
     # Set the inital GeoJSON source
-    geo_source = geo_sources['kmeans']
+    geo_source = GeoJSONDataSource(geojson = geo_sources['kmeans'])
+    kmeans_geo = GeoJSONDataSource(geojson = geo_sources['kmeans'])
+    sskmeans_geo =  GeoJSONDataSource(geojson = geo_sources['sskmeans'])
 
     wisc_bounds_long = (-92.8894, -86.764)
     wisc_bounds_lat = (42.4919, 47.0808)
@@ -143,7 +136,7 @@ def polynomial():
     ]
 
     fig = figure(
-        title="Current and Generated Wisconsin Districts",
+        title="Generated Wisconsin Districts",
         y_range=Range1d(
             bounds = y_bounds,
             start = wisc_bounds_lat[0] - fig_bounds_buffer/y_factor,
@@ -168,38 +161,24 @@ def polynomial():
     fig.ygrid.visible = False
     fig.outline_line_width = 3
 
-    colors_dict = {
-        'cmpctness': LinearColorMapper(
-            palette = bokeh.palettes.brewer['Reds'][9]),
-        'id': LinearColorMapper(
-            palette = bokeh.palettes.brewer['Set1'][8]),
-        'popdiff': LinearColorMapper(
-            palette = bokeh.palettes.brewer['RdBu'][11])
-    }
-    current_mapper = colors_dict['id']
-
     json_patches = fig.patches(
         xs='xs', ys='ys', line_color='black',
-        line_width=1, source = geo_sources['kmeans'],
-        fill_color = {
-            'field': 'id',
-            'transform': current_mapper}
+        line_width=1, source = geo_source,
+        fill_color = {'field': 'id_color'}
     )
 
     callback_type = CustomJS(
         args = dict(
             source = geo_source,
-            current_source = geo_sources['kmeans'],
-            kmeans_source = geo_sources['kmeans'],
-            sskmeans_sources = geo_sources['kmeans']
+            kmeans_source = kmeans_geo,
+            sskmeans_source = sskmeans_geo
         ),
         code = """
-            var geojson = source.geojson;
             var f = cb_obj.value;
             if (f == 'kmeans') {
-                geojson = kmeans_source;
-            } else {
-                geojson = kmeans_source;
+                source.geojson = kmeans_source.geojson;
+            } else if (f == 'sskmeans') {
+                source.geojson = sskmeans_source.geojson;
             };
             source.trigger('change');
         """
@@ -207,7 +186,6 @@ def polynomial():
     type_select = Select(
         title = "District Type",
         options = [
-            ('current', 'Current Districts'),
             ('kmeans', 'Naive KMeans'),
             ('sskmeans', 'SameSizeKMeans')
         ], width = int(750/2),
@@ -215,51 +193,19 @@ def polynomial():
     )
 
     callback_info = CustomJS(
-        args = dict(
-            renderer = json_patches,
-            current_mapper = current_mapper,
-            mapper_dist = colors_dict['id'],
-            mapper_cmpctness = colors_dict['cmpctness'],
-            mapper_popdiff = colors_dict['popdiff']
-        ),
+        args = dict(renderer = json_patches),
         code = """
             var f = cb_obj.value;
-            if (f == 'id') {
-                var new_mapper = mapper_dist;
-            } else if (f == 'cmpctness') {
-                var new_mapper = mapper_cmpctness;
-            } else if (f == 'popdiff') {
-                var new_mapper = mapper_popdiff;
-            };
-            console.log(f);
-            console.log(renderer.glyph.fill_color.field);
-            renderer.glyph.fill_color['field'] =  f;
-            renderer.glyph.fill_color['transform'] = new_mapper;
-            if (new_mapper == current_mapper) {
-                console.log('bloop');
-            }
-            current_mapper = new_mapper;
-            if (new_mapper == current_mapper) {
-                console.log('bloop');
-            }
-            current_mapper.trigger('change');
+            renderer.glyph.fill_color = {'field': f};
             renderer.trigger('change');
         """
     )
-    # if (f == 'id') {
-    #     var new_mapper = mapper_dist;
-    # } elif (f == 'cmpctness') {
-    #     var new_mapper = mapper_cmpctness;
-    # } else {
-    #     var new_mapper = mapper_dist;
-    # };
-    # renderer.trigger('change');
     info_select = Select(
         title = "District information",
         options = [
-            ('id', 'Districts (Categorical)'),
-            ('cmpctness', 'Compactness'),
-            ('popdiff', 'Population Variance')
+            ('id_color', 'Districts (Categorical)'),
+            ('cmpct_col', 'Compactness'),
+            ('pdiff_col', 'Population Variance')
         ], width = int(750/2),
         callback = callback_info
     )
@@ -279,9 +225,7 @@ def polynomial():
         plot_script=script,
         plot_div=div,
         js_resources=js_resources,
-        css_resources=css_resources,
-        disttype=disttype,
-        distinfo=distinfo
+        css_resources=css_resources
     )
     return encode_utf8(html)
 
