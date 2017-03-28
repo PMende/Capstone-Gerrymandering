@@ -52,12 +52,14 @@ def generate_colors(values, cmap, reference=1.):
 
 def plot_shapes(
         shapelist, shape_colors, alpha=0.85, fig_file=None,
-        center_of_mass_arr=None, patch_lw = 1.5):
+        center_of_mass_arr=None, patch_lw = 1.5,
+        cutout = None):
     '''Function for plotting generated districts
     '''
 
     _patches = [
-        PolygonPatch(shape['shape'].intersection(wisconsin))
+        PolygonPatch(shape['shape']) if cutout is None
+        else PolygonPatch(shape['shape'].intersection(cutout))
         for shape in shapelist
     ]
 
