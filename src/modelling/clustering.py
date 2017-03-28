@@ -81,7 +81,7 @@ class SameSizeKMeans(object):
 
         for step in range(self.n_clusters - self.LOOP_BUFFER):
 
-            print('Starting step ',step)
+            print('Starting step ',step+1)
 
             # Determine the cluster to update on this step, along
             # with its associated info
@@ -92,9 +92,9 @@ class SameSizeKMeans(object):
             # Adjust the determined cluster, and return its finalized
             # associated coordinates
             _coords = self._adjust_cluster(
-                _coords, _weights,
-                _label, _score_arr,
-                order, step)
+                _coords, _weights, _label,
+                _score_arr, order, step
+            )
 
             # Set _coords as having finalized labels, and set their labels
             for coord in _coords:

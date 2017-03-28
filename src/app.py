@@ -7,7 +7,6 @@ import os
 import requests
 import json
 from itertools import cycle
-from ast import literal_eval
 
 from flask import (
     Flask,
@@ -25,7 +24,6 @@ from bokeh.models import (
     ResetTool,
     WheelZoomTool,
     GeoJSONDataSource,
-    LinearColorMapper,
     Select,
     CustomJS
 )
@@ -41,15 +39,9 @@ app = Flask(__name__)
 
 PORT = 8090
 
-SSKMEANS_GEOJSON = (
-    './static/geojson/sskmeans_districts.json'
-)
-KMEANS_GEOJSON = (
-    './static/geojson/kmeans_districts.json'
-)
-ALL_GEOJSON = {
-    'kmeans': KMEANS_GEOJSON,
-    'sskmeans': SSKMEANS_GEOJSON
+ALL_SSKMEANS_GEOJSON = {
+    'sskmeans{}'.format(i): './static/geojson/sskmeans{}.json'.format(i)
+    for i in range(8)
 }
 
 GMAPS_API_KEY = os.environ['GMAPS_API_KEY']
@@ -64,48 +56,36 @@ GMAPS_LINK = (
 def main():
     return render_template(
         'index.html', maplink = GMAPS_LINK,
-        kmeans_geojson = KMEANS_GEOJSON
+        kmeans_geojson = ALL_SSKMEANS_GEOJSON['sskmeans0']
     )
 
 @app.route('/map')
 def map():
     return render_template(
         'main.html', maplink = GMAPS_LINK,
-        kmeans_geojson = KMEANS_GEOJSON
+        kmeans_geojson = ALL_SSKMEANS_GEOJSON['sskmeans0']
     )
-
-colors = {
-    'Black': '#000000',
-    'Red':   '#FF0000',
-    'Green': '#00FF00',
-    'Blue':  '#0000FF',
-}
-
-def getitem(obj, item, default):
-    if item not in obj:
-        return default
-    else:
-        return obj[item]
 
 @app.route('/embed')
 def polynomial():
     """ Very simple embedding of a polynomial chart
     """
 
-    # Grab the inputs arguments from the URL
-    args = request.args
-
     # Load GeoJSON sources into a dictionary
     geo_sources = {}
-    with open(KMEANS_GEOJSON, 'r') as f:
-        geo_sources['kmeans'] = f.read()
-    with open(SSKMEANS_GEOJSON, 'r') as f:
-        geo_sources['sskmeans'] = f.read()
+    for step in ['sskmeans{}'.format(i) for i in range(8)]:
+        with open(ALL_SSKMEANS_GEOJSON[step]) as f:
+            geo_sources[step] = f.read()
 
-    # Set the inital GeoJSON source
-    geo_source = GeoJSONDataSource(geojson = geo_sources['kmeans'])
-    kmeans_geo = GeoJSONDataSource(geojson = geo_sources['kmeans'])
-    sskmeans_geo =  GeoJSONDataSource(geojson = geo_sources['sskmeans'])
+    # Set the inital GeoJSONDataSource object
+    geo_source = GeoJSONDataSource(
+        geojson = geo_sources['sskmeans0']
+    )
+    # Create a dictionary of all source objects
+    sskmeans_sources = {
+        key: GeoJSONDataSource(geojson = geo_sources[key])
+        for key in geo_sources
+    }
 
     wisc_bounds_long = (-92.8894, -86.764)
     wisc_bounds_lat = (42.4919, 47.0808)
@@ -170,8 +150,14 @@ def polynomial():
     callback_type = CustomJS(
         args = dict(
             source = geo_source,
-            kmeans_source = kmeans_geo,
-            sskmeans_source = sskmeans_geo
+            sskmeans0 = sskmeans_sources['sskmeans0'],
+            sskmeans1 = sskmeans_sources['sskmeans1'],
+            sskmeans2 = sskmeans_sources['sskmeans2'],
+            sskmeans3 = sskmeans_sources['sskmeans3'],
+            sskmeans4 = sskmeans_sources['sskmeans4'],
+            sskmeans5 = sskmeans_sources['sskmeans5'],
+            sskmeans6 = sskmeans_sources['sskmeans6'],
+            sskmeans7 = sskmeans_sources['sskmeans7']
         ),
         code = """
             var f = cb_obj.value;
@@ -179,6 +165,22 @@ def polynomial():
                 source.geojson = kmeans_source.geojson;
             } else if (f == 'sskmeans') {
                 source.geojson = sskmeans_source.geojson;
+            } else if (f == 'sskmeans0') {
+                source.geojson = sskmeans0.geojson
+            } else if (f == 'sskmeans1') {
+                source.geojson = sskmeans1.geojson
+            } else if (f == 'sskmeans2') {
+                source.geojson = sskmeans2.geojson
+            } else if (f == 'sskmeans3') {
+                source.geojson = sskmeans3.geojson
+            } else if (f == 'sskmeans4') {
+                source.geojson = sskmeans4.geojson
+            } else if (f == 'sskmeans5') {
+                source.geojson = sskmeans5.geojson
+            } else if (f == 'sskmeans6') {
+                source.geojson = sskmeans6.geojson
+            } else if (f == 'sskmeans7') {
+                source.geojson = sskmeans7.geojson
             };
             source.trigger('change');
         """
@@ -186,8 +188,14 @@ def polynomial():
     type_select = Select(
         title = "District Type",
         options = [
-            ('kmeans', 'Naive KMeans'),
-            ('sskmeans', 'SameSizeKMeans')
+            ('sskmeans0', 'SameSizeKMeans Step 0'),
+            ('sskmeans1', 'SameSizeKMeans Step 1'),
+            ('sskmeans2', 'SameSizeKMeans Step 2'),
+            ('sskmeans3', 'SameSizeKMeans Step 3'),
+            ('sskmeans4', 'SameSizeKMeans Step 4'),
+            ('sskmeans5', 'SameSizeKMeans Step 5'),
+            ('sskmeans6', 'SameSizeKMeans Step 6'),
+            ('sskmeans7', 'SameSizeKMeans Step 7')
         ], width = int(750/2),
         callback = callback_type
     )

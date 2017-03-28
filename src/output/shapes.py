@@ -3,28 +3,49 @@ from builtins import (
     ascii, bytes, chr, dict, filter, hex, input, int, map,
     next, oct, open, pow, range, round, str, super, zip)
 
+# Standard library imports
 import os
 from itertools import cycle
-from functools import partial
+import json
 
 import numpy as np
 
 # Imports for working with shapefiles
-import pyproj
-from shapely.geometry import shape, MultiPolygon, mapping
-from shapely.ops import transform, cascaded_union
+from shapely.geometry import (
+    shape,
+    mapping
+)
 from descartes import PolygonPatch
 import fiona
 from fiona.crs import from_epsg
 
 # matplotlib imports
 import matplotlib.pyplot as plt
-import matplotlib.pylab as plb
-from matplotlib.colors import to_rgb, to_hex
-from matplotlib import cm
-from matplotlib.patches import Polygon
+from matplotlib.colors import (
+    to_rgb,
+    to_hex
+)
 
-def generate_colors(values, cmap, reference=1):
+def generate_colors(values, cmap, reference=1.):
+    '''Generate colors from a matplotlib colormap
+
+    Parameters
+    ----------
+    Values : numpy array
+        Values to map to RGBA tuples according to
+        the provided colormap
+
+    cmap: matplotlib colormap object
+
+    reference: float, default: 1
+        A reference to use for the values provided
+
+    Returns
+    -------
+    _colors: list, RGBA tuples
+
+    '''
+
     _colors = [cmap(value/reference) for value in values]
 
     return _colors
@@ -32,6 +53,9 @@ def generate_colors(values, cmap, reference=1):
 def plot_shapes(
         shapelist, shape_colors, alpha=0.85, fig_file=None,
         center_of_mass_arr=None, patch_lw = 1.5):
+    '''Function for plotting generated districts
+    '''
+
     _patches = [
         PolygonPatch(shape['shape'].intersection(wisconsin))
         for shape in shapelist
