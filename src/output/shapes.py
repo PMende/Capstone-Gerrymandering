@@ -68,3 +68,43 @@ def plot_shapes(
             raise(e)
 
     return None
+
+def generate_shapefiles(districts, location,
+                        schema, all_schema_values,
+                        epsg_spec):
+
+    crs = from_epsg(epsg_spec)
+    with fiona.open(location, 'w', 'ESRI Shapefile',
+                    schema, crs=crs) as c:
+        for district, schema_values in zip(districts, all_schema_values):
+            c.write(schema_values)
+
+def geojson_from_shapefile(source, target, simp_factor):
+
+    with fiona.collection(source, "r") as shapefile:
+        features = [feature for feature in shapefile]
+        crs = " ".join(
+            "+{}={}".format(key,value)
+            for key, value in shapefile.crs.items()
+        )
+
+    for feature in features:
+        feature['geometry'] = mapping(
+            shape(feature['geometry']).simplify(simp_factor)
+        )
+
+    my_layer = {
+    "type": "FeatureCollection",
+    "features": features,
+    "crs": {
+        "type": "link",
+        "properties": {"href": "kmeans_districts.crs", "type": "proj4"}
+        }
+    }
+
+    crs_target = os.path.splitext(target)[0]+'.crs'
+
+    with open(target, "w") as f:
+        f.write(unicode(json.dumps(my_layer)))
+    with open(crs_target, "w") as f:
+        f.write(unicode(crs))
