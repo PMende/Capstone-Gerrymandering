@@ -3,9 +3,10 @@ Ecclesia
 The goal of this project is to quantify how representative current and proposed districts are  by comparing their simulated outcomes to what we would expect if we were to have a representative set of districts. The first step of this is to  Two principal types of districts will be presented:
 1. Districts as established by the state of Wisconsin
 2. Algorithmically generated districts.
-..* Currently, districts have been created by a version of [K means](https://elki-project.github.io/tutorial/same-size_k_means) using total population in each district as the determiner of cluster size. As of the time of this writing, the "relaxation" portion of the algorithm has not been implemented. I plan to move onto different algorithms in the future.
-..* Possible alternatives to SameSizeKMeans include: spectral clustering, and a from-scratch algorithm to cluster block-groups as nodes on a graph that I am currently in the midst of structuring in pseudo-code.
-..* Ultimately, any algorithm must take a number of clusters as a *prespecified* input. The number of clusters is invariably the number of districts, and the number of districts is established by law.
+
+    * Currently, districts have been created by a version of [K means](https://elki-project.github.io/tutorial/same-size_k_means) using total population in each district as the determiner of cluster size. As of the time of this writing, the "relaxation" portion of the algorithm has not been implemented. I plan to move onto different algorithms in the future.
+    * Possible alternatives to SameSizeKMeans include: spectral clustering, and a from-scratch algorithm to cluster block-groups as nodes on a graph that I am currently in the midst of structuring in pseudo-code.
+    * Ultimately, any algorithm must take a number of clusters as a *prespecified* input. The number of clusters is invariably the number of districts, and the number of districts is established by law.
 
 Introduction to gerrymandering
 ------------------------------
