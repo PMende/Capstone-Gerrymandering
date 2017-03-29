@@ -44,13 +44,6 @@ ALL_SSKMEANS_GEOJSON = {
     for i in range(8)
 }
 
-GMAPS_API_KEY = os.environ['GMAPS_API_KEY']
-GMAPS_LINK = (
-    "https://maps.googleapis.com/maps/api/" +
-    "js?key={}&callback=initMap".format(GMAPS_API_KEY)
-)
-
-
 
 @app.route('/')
 def main():
@@ -59,16 +52,9 @@ def main():
         kmeans_geojson = ALL_SSKMEANS_GEOJSON['sskmeans0']
     )
 
-@app.route('/map')
-def map():
-    return render_template(
-        'main.html', maplink = GMAPS_LINK,
-        kmeans_geojson = ALL_SSKMEANS_GEOJSON['sskmeans0']
-    )
-
 @app.route('/embed')
-def polynomial():
-    """ Very simple embedding of a polynomial chart
+def bokeh_geojson():
+    """ Embedding a bokeh plot in flask
     """
 
     # Load GeoJSON sources into a dictionary
