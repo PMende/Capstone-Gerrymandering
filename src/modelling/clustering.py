@@ -13,16 +13,13 @@ import numpy as np
 from sklearn.cluster import KMeans
 
 class SameSizeKMeans(object):
-    '''K-Means clustering
+    '''SameSize K-Means clustering algorithm
 
     Parameters
     ----------
     n_clusters : int, optional, default: 8
         The number of clusters to form as well as the number of
         centroids to generate.
-
-    weight_tol : float, default: 1e-4
-        Fractional tolerance of the
 
     init_model: KMeans object, default: None
         The initial KMeans model to fit on. Leaving as None
@@ -32,6 +29,11 @@ class SameSizeKMeans(object):
     save_labels: bool, default: False
         Whether to save labels at each step of the fitting
         process. Setting to True will cause the creation
+
+    metric: str, default: 'l2'
+        Specifies the distance metric to use after the initial
+        KMeans clustering algorithm is run. Only 'l2' (Euclidean
+        distance) is currently guaranteed to work.
 
     Attributes
     ----------
@@ -73,6 +75,40 @@ class SameSizeKMeans(object):
         self.metric = metric
 
     def fit(self, X, weights=None, weight_tol=0, order='s'):
+        ''' Fit the SSKMeans model, populating final_labels
+
+        Parameters
+        ----------
+        X: array, [n_points, 2]
+            Coordinates of each
+
+        weights: float, default: 1e-4
+            Fractional tolerance of the weight
+
+        weight_tol : float, default: 1e-4
+            Fractional tolerance of the weight
+
+        order: str or list of strings, default: 's'
+            The order in which to adjust clusters. Options are:
+                - "smallest_first" or "s": Adjusts the smallest
+                    clusters first
+                - "largest_first" or "l": Adjusts the largest
+                    clusters first
+                - "min_v": Adjusts the cluster closest to the
+                    optimal size first
+                - "max_v": Adjusts the cluster farthest from
+                    the optimal size first
+            Alternatively, you may pass a list of any combination
+            of these options. The list must be as long as n_clusters
+
+        Returns
+        -------
+        None
+
+        Populates the following model attributes:
+            final_labels
+            all_labels_ (if save_labels == True)
+        '''
 
         self._save_fit_params(X, weights, weight_tol, order)
 
@@ -92,8 +128,7 @@ class SameSizeKMeans(object):
             # Adjust the determined cluster, and return its finalized
             # associated coordinates
             _coords = self._adjust_cluster(
-                _coords, _weights, _label,
-                _score_arr, order, step
+                _coords, _weights, _label, _score_arr, order, step
             )
 
             # Set _coords as having finalized labels, and set their labels
@@ -116,6 +151,22 @@ class SameSizeKMeans(object):
                 self.all_labels_.append(deepcopy(_temp_labels))
 
     def _save_fit_params(self, X, weights, weight_tol, order):
+        '''Saves the fit parameters during fit()
+
+        Parameters
+        ----------
+        X : array, shape = [n_samples, 2]
+
+        weights: array, shape = (n_samples,)
+
+        weight_tol: float
+
+        For descriptions, see fit()
+
+        Returns
+        -------
+        None
+        '''
 
         self.X = X
         self.weight_tol = weight_tol
@@ -132,7 +183,21 @@ class SameSizeKMeans(object):
 
         self._ideal_cluster_weight = np.sum(weights)/self.n_clusters
 
+        return None
+
     def _fit_naive_KMeans(self, X):
+        '''Fits the initial KMeans model
+
+        Parameters
+        ----------
+        X : array, shape = [n_samples, 2]
+            See fit()
+
+        Returns
+        -------
+        _temp_labels: array, shape = [n_samples,]
+            The inital KMeans labels assigned to each point
+        '''
 
         # Setup naive KMeans model
         _temp_model = KMeans(**self.init_params)
@@ -144,12 +209,6 @@ class SameSizeKMeans(object):
             self.all_labels_.append(deepcopy(_temp_labels))
 
         # Create a dictionary of cluster centers by label
-        self.cluster_centers_ = {
-            label: np.mean(X[_temp_labels == label], axis=0)
-            for label in self._unique_labels
-        }
-
-        # Create a dictionary of centers of mass by label
         self.cluster_centers_ = {
             label: np.mean(X[_temp_labels == label], axis=0)
             for label in self._unique_labels
@@ -169,6 +228,28 @@ class SameSizeKMeans(object):
         return _temp_labels
 
     def _get_cluster_info(self, order, step):
+        '''Convenience function getting properties of the chosen cluster
+
+        Parameters
+        ----------
+        order: str or list
+            See fit()
+
+        step: int
+            The current iteration of the SSKMeans adjustment.
+
+        Returns
+        -------
+        _coords
+
+        _weights
+
+        _label
+
+        _score_arr
+
+        _centroid
+        '''
 
         _order = self._get_order(order, step)
 
@@ -201,6 +282,8 @@ class SameSizeKMeans(object):
         return(_coords, _weights, _label, _score_arr, _centroid)
 
     def _get_order(self, order, step):
+        '''Convenience function for setting the clustering order
+        '''
 
         try:
             _order = self.ORDER_DICT[order]
@@ -223,7 +306,8 @@ class SameSizeKMeans(object):
         return _order
 
     def _find_cluster(self, order):
-        '''Finds the unfinalized cluster according to order'''
+        '''Finds the unfinalized cluster according to self.order
+        '''
 
         # Find the coordinates, weights, and current assigned
         # label of each point which doesn't have a finalized
@@ -237,8 +321,6 @@ class SameSizeKMeans(object):
         _labels = self.final_labels[
             np.logical_not(self._labels_finalized)
         ]
-
-        # Check if a cluster is
 
         # Get the weights of the clusters that aren't finalized
         # if order is 'l' or 's'
@@ -279,6 +361,8 @@ class SameSizeKMeans(object):
 
     def _adjust_cluster(self, coords, weights, label,
                         score_arr, order, step):
+        '''Performs the adjustment of the given cluster
+        '''
 
         _order = self._get_order(order, step)
 
@@ -320,7 +404,8 @@ class SameSizeKMeans(object):
         return(coords)
 
     def _score_centroids_one_point(self, coords, label):
-        '''Gets distance between point and remaining clusters'''
+        '''Gets distance between point and remaining clusters
+        '''
 
         point_dict = {
             _label: self._calculate_distance(
@@ -333,6 +418,8 @@ class SameSizeKMeans(object):
         return point_dict
 
     def _reassign_farthest(self, coords, weights, label):
+        '''Sends point farthest from center to closest cluster
+        '''
 
         # Calculated the cluster's current center of mass
         center_of_mass = (
@@ -371,6 +458,8 @@ class SameSizeKMeans(object):
         return(_coords, _weights)
 
     def _score_other_points(self, coords, centroid):
+        '''Finds the distance between points in coords and centroid
+        '''
 
         # Make a mask for each point in coords that tells us
         # if it's in X
@@ -402,6 +491,8 @@ class SameSizeKMeans(object):
 
     def _reassign_closest(
             self, coords, weights, label, score_arr):
+        '''Reassigns closest point to current cluster (label)
+        '''
 
         # Select the closest point
         _best_score_row = np.argmin(score_arr[:,1])
@@ -425,6 +516,8 @@ class SameSizeKMeans(object):
         return(_coords, _weights, _score_arr)
 
     def _update_centroids(self):
+        '''Recalculates cluster centroids
+        '''
 
         # Create a dictionary of cluster centers by label
         self.cluster_centers_ = {
@@ -436,6 +529,8 @@ class SameSizeKMeans(object):
         return None
 
     def _calculate_distance(self, coord_arr, point=None):
+        '''Distance between points in coord_arr and point
+        '''
 
         if coord_arr.ndim == 1:
             _axis = 0
@@ -458,8 +553,3 @@ class SameSizeKMeans(object):
                 np.abs(coord_arr - _point), axis=_axis)
 
         return _distances
-
-
-def find_nearest(coord_arr, point):
-    idx = np.abs(coord_arr - point).argmin()
-    return{'dist': coord_arr[idx], 'idx': idx}
