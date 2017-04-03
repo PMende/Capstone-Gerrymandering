@@ -553,3 +553,45 @@ class SameSizeKMeans(object):
                 np.abs(coord_arr - _point), axis=_axis)
 
         return _distances
+
+class GraphKMeans(object):
+    '''Clustering in fully-connected, undirected graphs
+    '''
+
+    def __init__(self):
+        pass
+
+    def _seed_clusters(self):
+        pass
+
+    def _grow_clusters(self):
+        pass
+
+    def _freeze_node(self):
+        pass
+
+    def _freeze_cluster(self):
+        pass
+
+    def fit(self):
+        pass
+
+class GraphCluster(object):
+    '''Container for clusters in GraphKMeans
+    '''
+
+    def __init__(self, members=set(), edge=set()):
+        self.members = members
+        self.edge = edge
+
+    def add_member(self, node):
+        self.members.update(node)
+
+    def add_edge(self, node):
+        self.edge.update(node)
+
+    def remove_member(self, node):
+        self.members.remove(node)
+
+    def remove_edge(self, node):
+        self.edge.remove(node)
