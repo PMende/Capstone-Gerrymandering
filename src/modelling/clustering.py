@@ -573,6 +573,9 @@ class GraphKMeans(object):
     def _freeze_cluster(self):
         pass
 
+    def _anneal(self):
+        pass
+
     def fit(self):
         pass
 
