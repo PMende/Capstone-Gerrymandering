@@ -21,8 +21,8 @@ def shapes_to_graph(shape_list):
     G : graph whose nodes are geoids. Edges are defined
         between two nodes where the shape of one of the
         nodes touches the shape of the other node
-
     '''
+
     G = nx.Graph()
 
     shape_geoids = [shape['geoid'] for shape in shape_list]

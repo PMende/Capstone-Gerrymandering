@@ -28,7 +28,7 @@ class SameSizeKMeans(object):
 
     save_labels: bool, default: False
         Whether to save labels at each step of the fitting
-        process. Setting to True will cause the creation
+        process.
 
     metric: str, default: 'l2'
         Specifies the distance metric to use after the initial
@@ -40,7 +40,7 @@ class SameSizeKMeans(object):
     cluster_centers_ : array, [n_clusters, n_features]
         Final coordinates of cluster centers
 
-    final_labels: array, [n_clusters, 1]
+    final_labels: array, [n_points, 1]
         Final labels of each point
 
     all_labels_: None or list
@@ -556,6 +556,28 @@ class SameSizeKMeans(object):
 
 class GraphKMeans(object):
     '''Clustering in fully-connected, undirected graphs
+
+    Parameters
+    ----------
+    n_clusters : int, default: 8
+        The number of clusters to form as well as the number of
+        centroids to generate.
+
+    save_labels: bool, default: False
+        Whether to save labels at each step of the fitting
+        process.
+
+    Attributes
+    ----------
+    cluster_centers_ : array, [n_clusters, 1]
+        Nodes (geoids) of the centers of each subgraph (cluster).
+
+    final_labels: array, [n_nodes, 1]
+        Final labels of each node (geoid)
+
+    all_labels_: None or list
+        Labels of each point at each step of the fitting
+        process. None unless save_labels is set to True.
     '''
 
     def __init__(self):
@@ -581,6 +603,19 @@ class GraphKMeans(object):
 
 class GraphCluster(object):
     '''Container for clusters in GraphKMeans
+
+    Parameters
+    ----------
+    members: set, default: set()
+        A set of nodes which are contained within a given cluster
+    edge: set, default: set()
+        The subset of members which are a distance 1 away from
+        any member of any other cluster
+
+    Attributes
+    ----------
+    members: See above
+    edge: See above
     '''
 
     def __init__(self, members=set(), edge=set()):
