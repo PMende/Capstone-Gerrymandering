@@ -606,6 +606,8 @@ class GraphCluster(object):
 
     Parameters
     ----------
+    label: int
+        Unique integer identifier for the given cluster
     members: set, default: set()
         A set of nodes which are contained within a given cluster
     edge: set, default: set()
@@ -614,19 +616,20 @@ class GraphCluster(object):
 
     Attributes
     ----------
+    label: See above
     members: See above
     edge: See above
     '''
 
-    def __init__(self, members=set(), edge=set()):
+    def __init__(self, label, members=set(), edge=set()):
         self.members = members
         self.edge = edge
 
     def add_member(self, node):
-        self.members.update(node)
+        self.members.add(node)
 
     def add_edge(self, node):
-        self.edge.update(node)
+        self.edge.add(node)
 
     def remove_member(self, node):
         self.members.remove(node)
