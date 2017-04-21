@@ -569,10 +569,7 @@ class GraphKMeans(object):
 
     Attributes
     ----------
-    cluster_centers_ : array, [n_clusters, 1]
-        Nodes (geoids) of the centers of each subgraph (cluster).
-
-    final_labels: array, [n_nodes, 1]
+    clusters: dict
         Final labels of each node (geoid)
 
     all_labels_: None or list
@@ -580,7 +577,11 @@ class GraphKMeans(object):
         process. None unless save_labels is set to True.
     '''
 
-    def __init__(self):
+    def __init__(self, n_clusters=8, save_labels=False):
+        self.n_clusters = n_clusters
+        self.save_labels = save_labels
+
+    def fit(self):
         pass
 
     def _seed_clusters(self):
@@ -596,9 +597,6 @@ class GraphKMeans(object):
         pass
 
     def _anneal(self):
-        pass
-
-    def fit(self):
         pass
 
 class GraphCluster(object):
@@ -624,6 +622,9 @@ class GraphCluster(object):
     def __init__(self, label, members=set(), edge=set()):
         self.members = members
         self.edge = edge
+
+    def __contains__(self, node):
+        return node in self.members
 
     def add_member(self, node):
         self.members.add(node)
