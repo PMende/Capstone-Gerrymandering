@@ -608,7 +608,7 @@ class GraphCluster(object):
         Unique integer identifier for the given cluster
     members: set, default: set()
         A set of nodes which are contained within a given cluster
-    edge: set, default: set()
+    border: set, default: set()
         The subset of members which are a distance 1 away from
         any member of any other cluster
 
@@ -616,21 +616,24 @@ class GraphCluster(object):
     ----------
     label: See above
     members: See above
-    edge: See above
+    border: See above
     '''
 
-    def __init__(self, label, members=set(), edge=set()):
+    def __init__(self, label, members=set(), border=set()):
         self.members = members
-        self.edge = edge
+        self.border = border
 
     def __contains__(self, node):
         return node in self.members
 
+    def __iter__(self):
+        return self.members.__iter__()
+
     def add_member(self, node):
         self.members.add(node)
 
-    def add_edge(self, node):
-        self.edge.add(node)
+    def add_border(self, node):
+        self.border.add(node)
 
     def remove_member(self, node):
         self.members.remove(node)
