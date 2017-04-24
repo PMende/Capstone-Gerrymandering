@@ -8,6 +8,7 @@ from itertools import cycle
 from functools import partial
 from copy import deepcopy
 from collections import defaultdict
+import random
 
 import numpy as np
 from sklearn.cluster import KMeans
@@ -554,14 +555,18 @@ class SameSizeKMeans(object):
 
         return _distances
 
-class GraphKMeans(object):
-    '''Clustering in fully-connected, undirected graphs
+class SSGraphKMeans(object):
+    '''Same-size clustering in fully-connected, undirected graphs
 
     Parameters
     ----------
-    n_clusters : int, default: 8
+    n_clusters: int, default: 8
         The number of clusters to form as well as the number of
         centroids to generate.
+
+    tol: numpy array(floats), default: np.linspace(5e4, 1.5e3, 8)
+        The tolerances through which to step as the algorithm brings
+        each cluster's weight towards equilibrium
 
     save_labels: bool, default: False
         Whether to save labels at each step of the fitting
@@ -570,22 +575,31 @@ class GraphKMeans(object):
     Attributes
     ----------
     clusters: dict
-        Final labels of each node (geoid)
+        Dictionary of GraphCluster objects. Keys are ints from
+        1:n_clusters. After calling fit(), each GraphCluster
+        object will have its members attribute appropriately
+        populated.
 
-    all_labels_: None or list
-        Labels of each point at each step of the fitting
-        process. None unless save_labels is set to True.
+    cluster_history: None or dict
+        If save_labels is True, cluster_history will be a dictionary
+        whose keys are either: 'initial', 'final', and all but the final
+        element of tol. The values will be dictionaries in the same
+        style as clusters above.
     '''
 
-    def __init__(self, n_clusters=8, save_labels=False):
+    def __init__(self, n_clusters=8, tol=np.linspace(5e4, 1.5e3, 8),
+                 save_labels=False):
         self.n_clusters = n_clusters
         self.save_labels = save_labels
+        self.clusters = {i+1: GraphCluster() for i in range(n_clusters)}
 
-    def fit(self):
+    def fit(self, tol=):
         pass
 
-    def _seed_clusters(self):
-        pass
+    def _seed_clusters(self, node_list):
+        initial_nodes = random.sample(node_list, self.n_clusters)
+
+        return initial_nodes
 
     def _grow_clusters(self):
         pass
@@ -604,8 +618,6 @@ class GraphCluster(object):
 
     Parameters
     ----------
-    label: int
-        Unique integer identifier for the given cluster
     members: set, default: set()
         A set of nodes which are contained within a given cluster
     border: set, default: set()
@@ -614,12 +626,11 @@ class GraphCluster(object):
 
     Attributes
     ----------
-    label: See above
     members: See above
     border: See above
     '''
 
-    def __init__(self, label, members=set(), border=set()):
+    def __init__(self, members=set(), border=set()):
         self.members = members
         self.border = border
 
@@ -632,11 +643,11 @@ class GraphCluster(object):
     def add_member(self, node):
         self.members.add(node)
 
-    def add_border(self, node):
+    def add_to_border(self, node):
         self.border.add(node)
 
     def remove_member(self, node):
         self.members.remove(node)
 
-    def remove_edge(self, node):
-        self.edge.remove(node)
+    def remove_from_border(self, node):
+        self.border.remove(node)
