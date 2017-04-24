@@ -599,7 +599,11 @@ class SSGraphKMeans(object):
     def _seed_clusters(self, node_list):
         initial_nodes = random.sample(node_list, self.n_clusters)
 
-        return initial_nodes
+        for i, node in enumerate(initial_nodes):
+            self.clusters[i+1].add_member(node)
+            self.clusters[i+1].add_to_border(node)
+
+        return None
 
     def _grow_clusters(self):
         pass
