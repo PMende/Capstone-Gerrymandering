@@ -590,13 +590,22 @@ class SSGraphKMeans(object):
     def __init__(self, n_clusters=8, tol=np.linspace(5e4, 1.5e3, 8),
                  save_labels=False):
         self.n_clusters = n_clusters
+        self.tol = tol
         self.save_labels = save_labels
         self.clusters = {i+1: GraphCluster() for i in range(n_clusters)}
 
-    def fit(self, tol=):
-        pass
+    def fit(self, graph):
+        '''Fit the model on the given graph
+        '''
+
+        self._seed_clusters(graph.nodes())
+
+        return None
 
     def _seed_clusters(self, node_list):
+        '''Add single nodes to each cluster in self.clusters
+        '''
+
         initial_nodes = random.sample(node_list, self.n_clusters)
 
         for i, node in enumerate(initial_nodes):
