@@ -664,8 +664,10 @@ class SSGraphKMeans(object):
         pass
 
     def _freeze_node(self, node):
+        '''Adds node to set of "frozen out" nodes
+        '''
 
-        pass
+        self._frozen_nodes.add(node)
 
     def _freeze_cluster(self, cluster_id):
         '''Add members of cluster to the set of "frozen out" nodes
