@@ -634,7 +634,7 @@ class SSGraphKMeans(object):
         '''Iteratively grow cluster seeds until all nodes are in a cluster
         '''
 
-        while not self._all_nodes_accounted_for():
+        while len(self._frozen_nodes) != len(self.graph.nodes()):
 
             for cluster_id in self._randomized_clusters():
                 for elem in self.clusters[cluster_id].border:
@@ -650,17 +650,6 @@ class SSGraphKMeans(object):
         )
 
         return rand_cluster_ids
-
-    def _all_nodes_accounted_for(self):
-        '''Check to see all nodes of graph in fit are in a cluster
-        '''
-
-        node_bool_list = [
-            self._node_in_any_cluster(node)
-            for node in self.graph.nodes()
-        ]
-
-        return all(node_bool_list)
 
     def _node_in_any_cluster(self, node):
         '''Checks to see if specified node is in any cluster
