@@ -651,15 +651,6 @@ class SSGraphKMeans(object):
 
         return rand_cluster_ids
 
-    def _node_in_any_cluster(self, node):
-        '''Checks to see if specified node is in any cluster
-        '''
-
-        return any([
-            node in self.clusters[cluster]
-            for cluster in self.clusters
-        ])
-
     def _absorb_neighbors(self, cluster_id):
         '''Assigns available neghbors of cluster to cluster
         '''
