@@ -593,48 +593,71 @@ class SSGraphKMeans(object):
         self.tol = tol
         self.save_labels = save_labels
         self.clusters = {i+1: GraphCluster() for i in range(n_clusters)}
+        self.cluster_weights = {i+1: 0 for i in range(n_clusters)}
 
-    def fit(self, graph):
+    def fit(self, graph, node_weights):
         '''Fit the model on the given graph
+
+        Parameters
+        ----------
+        graph: networkx Graph instance
+            A graph of N nodes. Graph *must* be fully connected.
+
+        node_weights: dict of ints or floats
+            Each node label of the input graph must be a key in node_weights
         '''
 
-        self._seed_clusters(graph.nodes())
+        self.graph = graph
+        self._net_graph_weight = sum(node_weights.values())
 
-        return None
+        self._seed_clusters()
+        self._grow_clusters()
 
-    def _seed_clusters(self, node_list):
+        for tolerance in self.tol:
+            for cluster_id in self._randomized_clusters():
+                self._anneal(cluster_id, tol)
+
+
+    def _seed_clusters(self):
         '''Add single nodes to each cluster in self.clusters
         '''
 
-        initial_nodes = random.sample(node_list, self.n_clusters)
+        initial_nodes = random.sample(self.graph.nodes(), self.n_clusters)
+        self._frozen_nodes = set(initial_nodes)
 
         for i, node in enumerate(initial_nodes):
             self.clusters[i+1].add_member(node)
             self.clusters[i+1].add_to_border(node)
 
-        return None
 
-    def _grow_clusters(self, node_list):
+    def _grow_clusters(self):
+        '''Iteratively grow cluster seeds until all nodes are in a cluster
+        '''
 
         while not self._all_nodes_accounted_for():
 
-            # Randomized list of cluster IDs so that the clusters
-            # can be grown without 
-            rand_cluster_ids = random.sample(
-                range(1,self.n_clusters+1),
-                n_clusters
-            )
-            for cluster_id in rand_cluster_ids:
+            for cluster_id in self._randomized_clusters():
+                for elem in self.clusters[cluster_id].border:
+                    self._absord_neighbors(cluster_id)
 
-        return None
 
-    def _all_nodes_accounted_for(self, node_list):
+    def _randomized_clusters(self):
+        '''Create randomized list of cluster IDs
+        '''
+
+        rand_cluster_ids = random.sample(
+            range(1,self.n_clusters+1), n_clusters
+        )
+
+        return rand_cluster_ids
+
+    def _all_nodes_accounted_for(self):
         '''Check to see all nodes of graph in fit are in a cluster
         '''
 
         node_bool_list = [
             self._node_in_any_cluster(node)
-            for node in node_list
+            for node in self.graph.nodes()
         ]
 
         return all(node_bool_list)
@@ -648,14 +671,35 @@ class SSGraphKMeans(object):
             for cluster in self.clusters
         ])
 
-    def _freeze_node(self):
+    def _absorb_neighbors(self, cluster_id):
+        '''Assigns available neghbors of cluster to cluster
+        '''
+
         pass
 
-    def _freeze_cluster(self):
+    def _add_node_to_border(self, node, cluster):
+        '''Checks node neighbors to
+        '''
+
         pass
 
-    def _anneal(self):
+    def _freeze_node(self, node):
+
         pass
+
+    def _freeze_cluster(self, cluster_id):
+        '''Add members of cluster to the set of "frozen out" nodes
+        '''
+
+        self._frozen_nodes.update(self.clusters[cluster_id])
+
+        return None
+
+    def _anneal(self, cluster_id, tolerance):
+        '''Update the given cluster until its weight is within tolerance
+        '''
+
+        return None
 
 class GraphCluster(object):
     '''Container for clusters in GraphKMeans
@@ -665,8 +709,8 @@ class GraphCluster(object):
     members: set, default: set()
         A set of nodes which are contained within a given cluster
     border: set, default: set()
-        The subset of members which are a distance 1 away from
-        any member of any other cluster
+        The subset of members which have neighbors that are not in
+        its own cluster
 
     Attributes
     ----------
