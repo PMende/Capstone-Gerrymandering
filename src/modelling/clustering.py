@@ -566,7 +566,9 @@ class SSGraphKMeans(object):
 
     tol: numpy array(floats), default: np.linspace(5e4, 1.5e3, 8)
         The tolerances through which to step as the algorithm brings
-        each cluster's weight towards equilibrium
+        each cluster's weight towards equilibrium. The default is
+        chosen for working with state populations. That is, for
+        weights of each node on the order of 1000.
 
     save_labels: bool, default: False
         Whether to save labels at each step of the fitting
@@ -608,7 +610,8 @@ class SSGraphKMeans(object):
         '''
 
         self.graph = graph
-        self._net_graph_weight = sum(node_weights.values())
+        self.node_weights = node_weights
+        self._ideal_cluster_weight = sum(node_weights.values())/self.n_clusters
 
         self._seed_clusters()
         self._grow_clusters()
@@ -628,6 +631,7 @@ class SSGraphKMeans(object):
         for i, node in enumerate(initial_nodes):
             self.clusters[i+1].add_member(node)
             self.clusters[i+1].add_to_border(node)
+            self.cluster_weights[i+1] += self.node_weights[node]
 
 
     def _grow_clusters(self):
@@ -635,10 +639,8 @@ class SSGraphKMeans(object):
         '''
 
         while len(self._frozen_nodes) != len(self.graph.nodes()):
-
             for cluster_id in self._randomized_clusters():
-                for elem in self.clusters[cluster_id].border:
-                    self._absord_neighbors(cluster_id)
+                self._absord_neighbors(cluster_id)
 
 
     def _randomized_clusters(self):
@@ -655,7 +657,14 @@ class SSGraphKMeans(object):
         '''Assigns available neghbors of cluster to cluster
         '''
 
-        pass
+        for border_member in self.clusters[cluster_id].border.copy():
+            for neighbor in self.graph[border_member].neighbors:
+                if neighbor not in self._frozen_nodes.copy():
+                    self.clusters[cluster_id].add_member(neighbor)
+                    self.clusters[cluster_id].add_to_border(neighbor)
+                    self._freeze_node(neighbor)
+            self.clusters[cluster_id].remove_from_border(border_member)
+
 
     def _add_node_to_border(self, node, cluster):
         '''Checks node neighbors to
