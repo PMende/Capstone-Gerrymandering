@@ -614,8 +614,39 @@ class SSGraphKMeans(object):
 
         return None
 
-    def _grow_clusters(self):
-        pass
+    def _grow_clusters(self, node_list):
+
+        while not self._all_nodes_accounted_for():
+
+            # Randomized list of cluster IDs so that the clusters
+            # can be grown without 
+            rand_cluster_ids = random.sample(
+                range(1,self.n_clusters+1),
+                n_clusters
+            )
+            for cluster_id in rand_cluster_ids:
+
+        return None
+
+    def _all_nodes_accounted_for(self, node_list):
+        '''Check to see all nodes of graph in fit are in a cluster
+        '''
+
+        node_bool_list = [
+            self._node_in_any_cluster(node)
+            for node in node_list
+        ]
+
+        return all(node_bool_list)
+
+    def _node_in_any_cluster(self, node):
+        '''Checks to see if specified node is in any cluster
+        '''
+
+        return any([
+            node in self.clusters[cluster]
+            for cluster in self.clusters
+        ])
 
     def _freeze_node(self):
         pass
