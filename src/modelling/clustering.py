@@ -684,13 +684,11 @@ class SSGraphKMeans(object):
 
         self._frozen_nodes.update(self.clusters[cluster_id])
 
-        return None
-
     def _anneal(self, cluster_id, tolerance):
         '''Update the given cluster until its weight is within tolerance
         '''
 
-        return None
+        pass
 
 class GraphCluster(object):
     '''Container for clusters in GraphKMeans
