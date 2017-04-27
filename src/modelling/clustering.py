@@ -638,7 +638,8 @@ class SSGraphKMeans(object):
         '''Iteratively grow cluster seeds until all nodes are in a cluster
         '''
 
-        while len(self._frozen_nodes) != len(self.graph.nodes()):
+        n_nodes = len(self.graph.nodes())
+        while len(self._frozen_nodes) != n_nodes):
             for cluster_id in self._randomized_clusters():
                 self._absord_neighbors(cluster_id)
 
@@ -659,7 +660,7 @@ class SSGraphKMeans(object):
 
         for border_member in self.clusters[cluster_id].border.copy():
             for neighbor in self.graph[border_member].neighbors:
-                if neighbor not in self._frozen_nodes.copy():
+                if neighbor not in self._frozen_nodes:
                     self.clusters[cluster_id].add_member(neighbor)
                     self.clusters[cluster_id].add_to_border(neighbor)
                     self._freeze_node(neighbor)
