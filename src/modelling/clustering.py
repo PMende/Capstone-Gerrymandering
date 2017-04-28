@@ -659,10 +659,13 @@ class SSGraphKMeans(object):
         '''
 
         for border_member in self.clusters[cluster_id].border.copy():
-            for neighbor in self.graph[border_member].neighbors:
+            for neighbor in self.graph[border_member]:
                 if neighbor not in self._frozen_nodes:
                     self.clusters[cluster_id].add_member(neighbor)
                     self.clusters[cluster_id].add_to_border(neighbor)
+                    self.cluster_weights[cluster_id] += (
+                        self.node_weights[neighbor]
+                    )
                     self._freeze_node(neighbor)
             self.clusters[cluster_id].remove_from_border(border_member)
 
@@ -685,14 +688,30 @@ class SSGraphKMeans(object):
 
         self._frozen_nodes.update(self.clusters[cluster_id])
 
-    def _anneal(self, cluster_id, tolerance):
-        '''Update the given cluster until its weight is within tolerance
+    def _anneal(self, cluster_id, tol):
+        '''Update the given cluster until its weight is within tol
         '''
+
+        start_weight = self.cluster_weights[cluster_id]
+        while abs(
+                self.cluster_weights[cluster_id]
+                - self._ideal_cluster_weight) > tol:
+            if start_weight < self._ideal_cluster_weight:
+                self._grow_cluster(cluster_id, tol)
+            elif start_weight > self._ideal_cluster_weight:
+                self._shrink_cluster(cluster_id, tol)
+
+
+    def _grow_cluster(self, cluster_id, tol):
+
+        pass
+
+    def _shrink_cluster(self, cluster_id, tol):
 
         pass
 
 class GraphCluster(object):
-    '''Container for clusters in GraphKMeans
+    '''Container for clusters in SSGraphKMeans
 
     Parameters
     ----------
