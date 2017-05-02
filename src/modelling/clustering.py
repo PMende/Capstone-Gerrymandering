@@ -673,11 +673,8 @@ class SSGraphKMeans(object):
         for border_member in self.clusters[cluster_id].border.copy():
             for neighbor in self.graph[border_member].difference(
                     self._frozen_nodes):
-                self.clusters[cluster_id].add_member(neighbor)
                 self.clusters[cluster_id].add_to_border(neighbor)
-                self.cluster_weights[cluster_id] += (
-                    self.node_weights[neighbor]
-                )
+                self.cluster_weights[cluster_id] += self.node_weights[neighbor]
                 self._freeze_node(neighbor)
             self.clusters[cluster_id].remove_from_border(border_member)
 
@@ -708,7 +705,7 @@ class SSGraphKMeans(object):
                 else:
                     self.clusters[cluster].add_to_border(node)
 
-        if cluster == None:
+        if cluster is None:
             for _cluster in self.clusters:
                 reset_cluster_border(_cluster)
         else:
@@ -725,34 +722,44 @@ class SSGraphKMeans(object):
         '''
 
         start_weight = self.cluster_weights[cluster_id]
-        while abs(
-                self.cluster_weights[cluster_id]
-                - self._ideal_cluster_weight) > tol:
+        while not self._cluster_within_tolerance(cluster_id, tol):
             if start_weight < self._ideal_cluster_weight:
                 self._grow_cluster(cluster_id, tol)
             elif start_weight > self._ideal_cluster_weight:
                 self._shrink_cluster(cluster_id, tol)
 
-        self.clusters[cluster_id].set_center()
+        self.clusters[cluster_id].set_center(self.graph, self.node_weights)
+        self._freeze_cluster(cluster_id)
+
+    def _cluster_within_tolerance(self, cluster_id, tol):
+        '''Check if given cluster's weight is within tol of ideal weight
+        '''
+
+        cluster_bool = abs(
+            self.cluster_weights[cluster_id]
+            - self._ideal_cluster_weight) < tol
+
+        return cluster_bool
 
     def _grow_cluster(self, cluster_id, tol):
         '''Iteratively grow cluster until it is within tol of ideal weight
         '''
 
-        for border_member in self.clusters[cluster_id].border.copy():
+        _center = self.clusters[cluster_id].center
+        sorted_border = sorted(
+                self.clusters[cluster_id].border,
+                key=lambda x: self.graph_distances[_center][x])
+        for border_member in sorted_border:
             for neighbor in self.graph[border_member].difference(
                     self._frozen_nodes):
-                if abs(
-                        self.cluster_weights[cluster_id]
-                        - self._ideal_cluster_weight) < tol:
-                    break
-                self.clusters[cluster_id].add_member(neighbor)
+                if self._cluster_within_tolerance(clustter_id, tol):
+                    return
                 self.clusters[cluster_id].add_to_border(neighbor)
-                self.cluster_weights[cluster_id] += (
-                    self.node_weights[neighbor]
-                )
+                self.cluster_weights[cluster_id] += self.node_weights[neighbor]             )
                 self._freeze_node(neighbor)
             self.clusters[cluster_id].remove_from_border(border_member)
+
+        self._set_borders(cluster=cluster_id)
 
 
     def _shrink_cluster(self, cluster_id, tol):
@@ -774,6 +781,9 @@ class GraphCluster(object):
     ----------
     members: See above
     border: See above
+    center: str or int
+        ID of node at the center of the cluster. Ties are broken by
+        the weights of the nodes
     '''
 
     def __init__(self, members=set(), border=set()):
@@ -792,6 +802,7 @@ class GraphCluster(object):
 
     def add_to_border(self, node):
         self.border.add(node)
+        self.add_member(node)
 
     def remove_member(self, node):
         self.members.discard(node)
@@ -799,6 +810,6 @@ class GraphCluster(object):
     def remove_from_border(self, node):
         self.border.discard(node)
 
-    def set_center(self, full_graph):
+    def set_center(self, full_graph, weights):
         sub_graph = full_graph.subgraph(self)
-        self.center = nx.center(sub_graph)
+        self.center = max(nx.center(sub_graph), key=weights.get)
