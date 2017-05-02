@@ -733,6 +733,7 @@ class SSGraphKMeans(object):
             elif start_weight > self._ideal_cluster_weight:
                 self._shrink_cluster(cluster_id, tol)
 
+        self.clusters[cluster_id].set_center()
 
     def _grow_cluster(self, cluster_id, tol):
         '''Iteratively grow cluster until it is within tol of ideal weight
