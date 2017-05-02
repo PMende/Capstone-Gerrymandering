@@ -626,10 +626,10 @@ class SSGraphKMeans(object):
         self._grow_clusters()
 
         for tolerance in self.tol:
+            self._frozen_nodes = set() # thaw clusters for this tolerance
             for cluster_id in self._randomized_clusters():
                 self._anneal(cluster_id, tol)
-            self._frozen_nodes = set() # thaw clusters for next tolerance
-
+                self.clusters[cluster_id].set_center()
 
     def _seed_clusters(self):
         '''Add single nodes to each cluster in self.clusters
@@ -639,7 +639,6 @@ class SSGraphKMeans(object):
         self._frozen_nodes = set(initial_nodes)
 
         for i, node in enumerate(initial_nodes):
-            self.clusters[i+1].add_member(node)
             self.clusters[i+1].add_to_border(node)
             self.cluster_weights[i+1] += self.node_weights[node]
 
@@ -649,7 +648,7 @@ class SSGraphKMeans(object):
         '''
 
         n_nodes = len(self.graph.nodes())
-        while len(self._frozen_nodes) != n_nodes):
+        while len(self._frozen_nodes) != n_nodes:
             for cluster_id in self._randomized_clusters():
                 self._absord_neighbors(cluster_id)
 
@@ -755,7 +754,7 @@ class SSGraphKMeans(object):
                 if self._cluster_within_tolerance(clustter_id, tol):
                     return
                 self.clusters[cluster_id].add_to_border(neighbor)
-                self.cluster_weights[cluster_id] += self.node_weights[neighbor]             )
+                self.cluster_weights[cluster_id] += self.node_weights[neighbor]
                 self._freeze_node(neighbor)
             self.clusters[cluster_id].remove_from_border(border_member)
 
