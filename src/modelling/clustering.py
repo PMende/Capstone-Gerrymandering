@@ -597,7 +597,7 @@ class SSGraphKMeans(object):
         self.clusters = {i+1: GraphCluster() for i in range(n_clusters)}
         self.cluster_weights = {i+1: 0 for i in range(n_clusters)}
 
-    def fit(self, graph, node_weights):
+    def fit(self, graph, graph_distances, node_weights):
         '''Fit the model on the given graph
 
         Parameters
@@ -605,11 +605,16 @@ class SSGraphKMeans(object):
         graph: networkx Graph instance
             A graph of N nodes. Graph *must* be fully connected.
 
+        graph_distances: dict of dicts
+            graph_distances should be precomputed using
+            networkx.shortest_path_length(graph)
+
         node_weights: dict of ints or floats
             Each node label of the input graph must be a key in node_weights
         '''
 
         self.graph = graph
+        self.graph_distances = graph_distances
         self.node_weights = node_weights
         self._ideal_cluster_weight = sum(node_weights.values())/self.n_clusters
 
@@ -680,6 +685,12 @@ class SSGraphKMeans(object):
 
     def _set_borders(self, cluster=None):
         '''Determine the borders of all or given cluster
+
+        Parameters
+        ----------
+        cluster: int, default: None
+            Specifies the cluster to determine the borders of. If left
+            as None, all clusters have their borders determined.
         '''
 
         def reset_cluster_border(cluster):
