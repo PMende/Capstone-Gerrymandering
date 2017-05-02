@@ -619,6 +619,7 @@ class SSGraphKMeans(object):
         for tolerance in self.tol:
             for cluster_id in self._randomized_clusters():
                 self._anneal(cluster_id, tol)
+            self._frozen_nodes = set() # thaw clusters for next tolerance
 
 
     def _seed_clusters(self):
@@ -643,6 +644,8 @@ class SSGraphKMeans(object):
             for cluster_id in self._randomized_clusters():
                 self._absord_neighbors(cluster_id)
 
+        self._set_borders()
+
 
     def _randomized_clusters(self):
         '''Create randomized list of cluster IDs
@@ -655,32 +658,40 @@ class SSGraphKMeans(object):
         return rand_cluster_ids
 
     def _absorb_neighbors(self, cluster_id):
-        '''Assigns available neghbors of cluster to cluster
+        '''Assigns available neghbors of given cluster to that cluster
         '''
 
         for border_member in self.clusters[cluster_id].border.copy():
-            for neighbor in self.graph[border_member]:
-                if neighbor not in self._frozen_nodes:
-                    self.clusters[cluster_id].add_member(neighbor)
-                    self.clusters[cluster_id].add_to_border(neighbor)
-                    self.cluster_weights[cluster_id] += (
-                        self.node_weights[neighbor]
-                    )
-                    self._freeze_node(neighbor)
+            for neighbor in self.graph[border_member].difference(
+                    self._frozen_nodes):
+                self.clusters[cluster_id].add_member(neighbor)
+                self.clusters[cluster_id].add_to_border(neighbor)
+                self.cluster_weights[cluster_id] += (
+                    self.node_weights[neighbor]
+                )
+                self._freeze_node(neighbor)
             self.clusters[cluster_id].remove_from_border(border_member)
-
-
-    def _add_node_to_border(self, node, cluster):
-        '''Checks node neighbors to
-        '''
-
-        pass
 
     def _freeze_node(self, node):
         '''Adds node to set of "frozen out" nodes
         '''
 
         self._frozen_nodes.add(node)
+
+    def _set_borders(self):
+        '''Determine the borders of each cluster
+        '''
+
+        for cluster in self.clusters:
+            for node in self.clusters[cluster]:
+                neighbors_in_this_cluster = [
+                    neighbor in self.clusters[cluster]
+                    for neightbor in self.graph[node]
+                ]
+                if all(neighbors_in_this_cluster):
+                    self.clusters[cluster].remove_from_border(node)
+                else:
+                    self.clusters[cluster].add_to_border(node)
 
     def _freeze_cluster(self, cluster_id):
         '''Add members of cluster to the set of "frozen out" nodes
@@ -703,8 +714,27 @@ class SSGraphKMeans(object):
 
 
     def _grow_cluster(self, cluster_id, tol):
+        '''Iteratively grow cluster until it is within tol of ideal weight
+        '''
+
+        for border_member in self.clusters[cluster_id].border.copy():
+            for neighbor in self.graph[border_member].difference(
+                    self._frozen_nodes):
+                self.clusters[cluster_id].add_member(neighbor)
+                self.clusters[cluster_id].add_to_border(neighbor)
+                self.cluster_weights[cluster_id] += (
+                    self.node_weights[neighbor]
+                )
+                self._freeze_node(neighbor)
+            self.clusters[cluster_id].remove_from_border(border_member)
+
+
+    def _add_node_to_border(self, node, cluster):
+        '''Checks node neighbors to
+        '''
 
         pass
+
 
     def _shrink_cluster(self, cluster_id, tol):
 
@@ -744,7 +774,7 @@ class GraphCluster(object):
         self.border.add(node)
 
     def remove_member(self, node):
-        self.members.remove(node)
+        self.members.discard(node)
 
     def remove_from_border(self, node):
-        self.border.remove(node)
+        self.border.discard(node)
