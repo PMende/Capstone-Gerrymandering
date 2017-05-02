@@ -3,6 +3,7 @@ from builtins import (
     ascii, bytes, chr, dict, filter, hex, input, int, map,
     next, oct, open, pow, range, round, str, super, zip)
 
+
 import os
 from itertools import cycle
 from functools import partial
@@ -10,8 +11,11 @@ from copy import deepcopy
 from collections import defaultdict
 import random
 
+
 import numpy as np
 from sklearn.cluster import KMeans
+import networkx as nx
+
 
 class SameSizeKMeans(object):
     '''SameSize K-Means clustering algorithm
@@ -774,6 +778,7 @@ class GraphCluster(object):
     def __init__(self, members=set(), border=set()):
         self.members = members
         self.border = border
+        self.center = None
 
     def __contains__(self, node):
         return node in self.members
@@ -792,3 +797,7 @@ class GraphCluster(object):
 
     def remove_from_border(self, node):
         self.border.discard(node)
+
+    def set_center(self, full_graph):
+        sub_graph = full_graph.subgraph(self)
+        self.center = nx.center(sub_graph)
