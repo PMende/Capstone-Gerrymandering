@@ -4,6 +4,7 @@ from builtins import (
     next, oct, open, pow, range, round, str, super, zip)
 
 import networkx as nx
+from shapely.geometry import Point
 
 def shapes_to_graph(shape_list):
     '''Turns a list of shapes into a graph
@@ -35,6 +36,10 @@ def shapes_to_graph(shape_list):
         if j > i
         if shape['geoid'] != other_shape['geoid']
         if shape['shape'].touches(other_shape['shape'])
+        if not isinstance(
+            shape['shape'].intersection(other_shape['shape']),
+            Point
+        )
     ]
     G.add_edges_from(touching_shapes)
 
