@@ -619,6 +619,22 @@ class SSGraphKMeans(object):
             Each node label of the input graph must be a key in node_weights
         '''
 
+        self._save_fit_params(graph, graph_distances, node_weights)
+
+        self._seed_clusters()
+        self._grow_clusters()
+        for tolerance in self.tol:
+            print('Annealing cluster weights to within {}'.format(tolerance))
+            self._frozen_nodes = set() # thaw clusters for this tolerance
+            for i, cluster_id in enumerate(self._randomized_clusters()):
+                if i == 2: break
+                print('Annealing cluster {}'.format(cluster_id))
+                self._anneal(cluster_id, tolerance)
+                self.clusters[cluster_id].set_center(self.graph, self.node_weights)
+
+    def _save_fit_params(self, graph, graph_distances, node_weights):
+        '''Save the parameters of fit()
+        '''
         self.graph = graph
         self._isolated_node_dict = {
             graph[node].keys()[0]: node
@@ -629,17 +645,6 @@ class SSGraphKMeans(object):
         self.node_weights = node_weights
         self._ideal_cluster_weight = sum(node_weights.values())/self.n_clusters
 
-        self._seed_clusters()
-        self._grow_clusters()
-
-        for tolerance in self.tol:
-            print('Annealing cluster weights to within {}'.format(tolerance))
-            self._frozen_nodes = set() # thaw clusters for this tolerance
-            for cluster_id in self._randomized_clusters():
-                break
-                print('Annealing cluster {}'.format(cluster_id))
-                self._anneal(cluster_id, tolerance)
-                self.clusters[cluster_id].set_center()
 
     def _seed_clusters(self):
         '''Add single nodes to each cluster in self.clusters
@@ -700,16 +705,16 @@ class SSGraphKMeans(object):
         current_cluster = self._node_clusters[node]
         if current_cluster is not None:
             self.clusters[current_cluster].remove_member(node)
-            self.cluster_weights[current_cluster] -= self.node_weights[node
+            self.cluster_weights[current_cluster] -= self.node_weights[node]
         self._node_clusters[node] = cluster_id
         self.clusters[cluster_id].add_member(node)
         if border:
             self.clusters[cluster_id].add_to_border(node)
         self.cluster_weights[cluster_id] += self.node_weights[node]
-        self._frozen_nodes.add(node)]
+        self._frozen_nodes.add(node)
         # Handle isolated nodes, if applicable
         if node in self._isolated_node_dict:
-            _isolated_node = self._isolated_node()
+            _isolated_node = self._isolated_node_dict[node]
             self._reassign_node(_isolated_node, cluster_id)
 
     def _set_borders(self, cluster=None):
