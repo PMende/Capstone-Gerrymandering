@@ -9,7 +9,7 @@ from itertools import cycle
 from functools import partial
 from copy import deepcopy
 from collections import (
-    defaultdict
+    defaultdict,
     Counter
 )
 import random
@@ -601,7 +601,6 @@ class SSGraphKMeans(object):
         self.n_clusters = n_clusters
         self.tol = tol
         self.save_labels = save_labels
-        self.clusters = {i+1: GraphCluster() for i in range(n_clusters)}
         self.cluster_weights = {i+1: 0 for i in range(n_clusters)}
 
     def fit(self, graph, graph_distances, node_weights):
@@ -621,6 +620,11 @@ class SSGraphKMeans(object):
         '''
 
         self.graph = graph
+        self._isolated_node_dict = {
+            graph[node].keys()[0]: node
+            for node in graph
+            if len(graph[node]) == 1
+        }
         self.graph_distances = graph_distances
         self.node_weights = node_weights
         self._ideal_cluster_weight = sum(node_weights.values())/self.n_clusters
@@ -629,9 +633,12 @@ class SSGraphKMeans(object):
         self._grow_clusters()
 
         for tolerance in self.tol:
+            print('Annealing cluster weights to within {}'.format(tolerance))
             self._frozen_nodes = set() # thaw clusters for this tolerance
             for cluster_id in self._randomized_clusters():
-                self._anneal(cluster_id, tol)
+                break
+                print('Annealing cluster {}'.format(cluster_id))
+                self._anneal(cluster_id, tolerance)
                 self.clusters[cluster_id].set_center()
 
     def _seed_clusters(self):
@@ -641,9 +648,10 @@ class SSGraphKMeans(object):
         initial_nodes = random.sample(self.graph.nodes(), self.n_clusters)
         self._frozen_nodes = set(initial_nodes)
         self._node_clusters = {node: None for node in self.graph}
+        self.clusters = {}
 
         for i, node in enumerate(initial_nodes):
-            self.clusters[i+1].add_to_border(node)
+            self.clusters[i+1] = GraphCluster({node}, {node})
             self.cluster_weights[i+1] += self.node_weights[node]
             self._node_clusters[node] = i+1
 
@@ -655,7 +663,10 @@ class SSGraphKMeans(object):
         n_nodes = len(self.graph.nodes())
         while len(self._frozen_nodes) != n_nodes:
             for cluster_id in self._randomized_clusters():
-                self._absord_neighbors(cluster_id)
+                self._absorb_neighbors(cluster_id)
+
+        for cluster_id in self.clusters:
+            self.clusters[cluster_id].set_center(self.graph, self.node_weights)
 
         self._set_borders()
 
@@ -665,7 +676,7 @@ class SSGraphKMeans(object):
         '''
 
         rand_cluster_ids = random.sample(
-            range(1,self.n_clusters+1), n_clusters
+            range(1,self.n_clusters+1), self.n_clusters
         )
 
         return rand_cluster_ids
@@ -675,23 +686,31 @@ class SSGraphKMeans(object):
         '''
 
         for border_member in self.clusters[cluster_id].border.copy():
-            for neighbor in (self.graph[border_member] - self._frozen_nodes):
+            neighbors = [
+                neighbor for neighbor in self.graph[border_member]
+                if self._node_clusters[neighbor] is None
+            ]
+            for neighbor in neighbors:
                 self._reassign_node(neighbor, cluster_id, border=True)
-            self.clusters[cluster_id].remove_from_border(border_member)
 
     def _reassign_node(self, node, cluster_id, border=False):
         '''Reassign given node to given cluster
         '''
 
         current_cluster = self._node_clusters[node]
+        if current_cluster is not None:
+            self.clusters[current_cluster].remove_member(node)
+            self.cluster_weights[current_cluster] -= self.node_weights[node
         self._node_clusters[node] = cluster_id
-        self.clusters[current_cluster].remove_member(node)
         self.clusters[cluster_id].add_member(node)
         if border:
             self.clusters[cluster_id].add_to_border(node)
-        self.cluster_weights[current_cluster] -= self.node_weights[node]
         self.cluster_weights[cluster_id] += self.node_weights[node]
-        self._frozen_nodes.add(node)
+        self._frozen_nodes.add(node)]
+        # Handle isolated nodes, if applicable
+        if node in self._isolated_node_dict:
+            _isolated_node = self._isolated_node()
+            self._reassign_node(_isolated_node, cluster_id)
 
     def _set_borders(self, cluster=None):
         '''Determine the borders of all or given cluster
@@ -707,7 +726,7 @@ class SSGraphKMeans(object):
             for node in self.clusters[cluster]:
                 neighbors_in_this_cluster = [
                     neighbor in self.clusters[cluster]
-                    for neightbor in self.graph[node]
+                    for neighbor in self.graph[node]
                 ]
                 if all(neighbors_in_this_cluster):
                     self.clusters[cluster].remove_from_border(node)
@@ -764,7 +783,8 @@ class SSGraphKMeans(object):
         # neighbors from other clusters to the current cluster
         for border_member in sorted_border:
             for neighbor in self.graph[border_member]:
-                if neighbor in (self._frozen_nodes | self.clusters[cluster_id]):
+                if (neighbor in self._frozen_nodes
+                        or neighbor in self.clusters[cluster_id]):
                     continue
                 self._reassign_node(neighbor, cluster_id, border=True)
                 changed_clusters.add(self._node_clusters[neighbor])
@@ -787,6 +807,7 @@ class SSGraphKMeans(object):
             self.clusters[cluster_id].border,
             key=lambda x: self.graph_distances[_center][x], reverse=True
         )
+        print('successfully sorted border')
 
         return sorted_border
 
@@ -858,6 +879,15 @@ class GraphCluster(object):
 
     def __sub__(self, other):
         return self.members + other
+
+    def __str__(self):
+        return self.members.__str__()
+
+    def __repr__(self):
+        return self.members.__repr__()
+
+    def __len__(self):
+        return self.members.__len__()
 
     def add_member(self, node):
         self.members.add(node)
