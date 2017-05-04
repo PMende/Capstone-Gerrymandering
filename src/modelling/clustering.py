@@ -8,7 +8,10 @@ import os
 from itertools import cycle
 from functools import partial
 from copy import deepcopy
-from collections import defaultdict
+from collections import (
+    defaultdict
+    Counter
+)
 import random
 
 
@@ -688,7 +691,7 @@ class SSGraphKMeans(object):
             self.clusters[cluster_id].add_to_border(node)
         self.cluster_weights[current_cluster] -= self.node_weights[node]
         self.cluster_weights[cluster_id] += self.node_weights[node]
-        self._frozen_nodes += node
+        self._frozen_nodes.add(node)
 
     def _set_borders(self, cluster=None):
         '''Determine the borders of all or given cluster
@@ -734,7 +737,9 @@ class SSGraphKMeans(object):
             elif start_weight > self._ideal_cluster_weight:
                 self._shrink_cluster(cluster_id, tol)
 
-        self.clusters[cluster_id].set_center(self.graph, self.node_weights)
+        # Reset cluster centers for next iteration in fit()
+        for _clstr in self.clusters:
+            self.clusters[_clstr].set_center(self.graph, self.node_weights)
         self._freeze_cluster(cluster_id)
 
     def _cluster_within_tolerance(self, cluster_id, tol):
@@ -759,16 +764,17 @@ class SSGraphKMeans(object):
         # neighbors from other clusters to the current cluster
         for border_member in sorted_border:
             for neighbor in self.graph[border_member]:
-                if neighbor in self._frozen_nodes:
+                if neighbor in (self._frozen_nodes | self.clusters[cluster_id]):
                     continue
                 self._reassign_node(neighbor, cluster_id, border=True)
-                changed_clusters += self._node_clusters[neighbor]
+                changed_clusters.add(self._node_clusters[neighbor])
                 if self._cluster_within_tolerance(cluster_id, tol):
                     for _cluster in changed_clusters:
                         self._set_borders(cluster=_cluster)
                     return
 
         # Determine the borders of the clusters that have been changed
+        # for the next iteration in _anneal()
         for _cluster in changed_clusters:
             self._set_borders(cluster=_cluster)
 
@@ -776,6 +782,7 @@ class SSGraphKMeans(object):
         '''Create list of cluster.border sorted by distance to cluster center
         '''
 
+        _center = self.clusters[cluster_id].center
         sorted_border = sorted(
             self.clusters[cluster_id].border,
             key=lambda x: self.graph_distances[_center][x], reverse=True
@@ -833,10 +840,10 @@ class GraphCluster(object):
         return self.members.__iter__()
 
     def __add__(self, other):
-        return other + self.members
+        return self.members + other
 
     def __sub__(self, other):
-        return other - self.members
+        return self.members + other
 
     def add_member(self, node):
         self.members.add(node)
@@ -853,5 +860,7 @@ class GraphCluster(object):
         self.border.discard(node)
 
     def set_center(self, full_graph, weights):
+        '''Finds the center of this cluster, breaking ties by node weight
+        '''
         sub_graph = full_graph.subgraph(self)
         self.center = max(nx.center(sub_graph), key=weights.get)
