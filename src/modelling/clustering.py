@@ -672,8 +672,7 @@ class SSGraphKMeans(object):
         '''
 
         for border_member in self.clusters[cluster_id].border.copy():
-            for neighbor in self.graph[border_member].difference(
-                    self._frozen_nodes):
+            for neighbor in (self.graph[border_member] - self._frozen_nodes):
                 self._reassign_node(neighbor, cluster_id, border=True)
             self.clusters[cluster_id].remove_from_border(border_member)
 
@@ -749,34 +748,32 @@ class SSGraphKMeans(object):
         return cluster_bool
 
     def _grow_cluster(self, cluster_id, tol):
-        '''Iteratively grow cluster until it is within tol of ideal weight
+        '''Grow cluster until border is exhausted or weight is within tol
         '''
 
         changed_clusters = {cluster_id}
+
         _center = self.clusters[cluster_id].center
-
-        while not self._cluster_within_tolerance(cluster_id, tol):
-            sorted_border = self._sort_border(cluster_id)
-
-            # Iterate through members of the cluster's border, then add their
-            # neighbors to the current cluster
-            for border_member in sorted_border:
-                free_neighbors = self.graph[border_member] - self._frozen_nodes
-                for neighbor in free_neighbors:
-                    self._reassign_node(neighbor, cluster_id, border=True)
-                    changed_clusters += self._node_clusters[neighbor]
-                    if self._cluster_within_tolerance(cluster_id, tol):
-                        for _cluster in _changed_clusters:
-                            self._set_borders(cluster=_cluster)
-                        return
-                self.clusters[cluster_id].remove_from_border(border_member)
+        sorted_border = self._sort_border(cluster_id)
+        # Iterate through members of the cluster's border, then add their
+        # neighbors from other clusters to the current cluster
+        for border_member in sorted_border:
+            for neighbor in self.graph[border_member]:
+                if neighbor in self._frozen_nodes:
+                    continue
+                self._reassign_node(neighbor, cluster_id, border=True)
+                changed_clusters += self._node_clusters[neighbor]
+                if self._cluster_within_tolerance(cluster_id, tol):
+                    for _cluster in changed_clusters:
+                        self._set_borders(cluster=_cluster)
+                    return
 
         # Determine the borders of the clusters that have been changed
-        for _cluster in _changed_clusters:
+        for _cluster in changed_clusters:
             self._set_borders(cluster=_cluster)
 
     def _sort_border(self, cluster_id):
-        '''Create list of nodes in cluster sorted by distance to cluster center
+        '''Create list of cluster.border sorted by distance to cluster center
         '''
 
         sorted_border = sorted(
@@ -788,14 +785,11 @@ class SSGraphKMeans(object):
 
 
     def _shrink_cluster(self, cluster_id, tol):
-        '''Iteratively shrink cluster until it is within tol of ideal weight
+        '''Shrink cluster until border is exhausted or weight is within tol
         '''
 
         _center = self.clusters[cluster_id].center
-        sorted_border = sorted( # Sort nodes from farthest to closest to _center
-                self.clusters[cluster_id].border,
-                key=lambda x: self.graph_distances[_center][x], reverse=True)
-
+        sorted_border = self._sort_border(cluster_id)
         # Iterate through the
         for border_member in sorted_border:
             _new_cluster = self._preferred_cluster(border_member)
@@ -837,6 +831,12 @@ class GraphCluster(object):
 
     def __iter__(self):
         return self.members.__iter__()
+
+    def __add__(self, other):
+        return other + self.members
+
+    def __sub__(self, other):
+        return other - self.members
 
     def add_member(self, node):
         self.members.add(node)
