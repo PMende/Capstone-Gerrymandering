@@ -803,10 +803,24 @@ class SSGraphKMeans(object):
             self._reassign_node(border_member, _new_cluster)
 
     def _preferred_cluster(self, node):
-        '''Get a new
+        '''Find most common cluster of node's neighbors not in node's cluster
         '''
 
-        pass
+        node_cluster = self._node_clusters[node]
+        # Get node neighbors that aren't in the node's cluster
+        node_neighbors = [
+            _node for _node in self.graph[node]
+            if _node not in self.clusters[node_cluster]
+        ]
+
+        cluster_votes = Counter([
+            self._node_clusters[neighbor]
+            for neighbor in node_neighbors
+        ])
+
+        winning_cluster = max(cluster_votes, key=cluster_votes.get)
+
+        return winning_cluster
 
 class GraphCluster(object):
     '''Container for clusters in SSGraphKMeans
