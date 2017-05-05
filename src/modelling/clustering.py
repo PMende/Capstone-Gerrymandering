@@ -629,14 +629,13 @@ class SSGraphKMeans(object):
             for i, cluster_id in enumerate(self._randomized_clusters()):
                 print('Annealing cluster {}'.format(cluster_id))
                 self._anneal(cluster_id, tolerance)
-                self._reconnect_clusters()
-                self.clusters[cluster_id].set_center(graph, node_weights)
+                #self._reconnect_clusters()
 
     def _save_fit_params(self, graph, graph_distances, node_weights):
         '''Save the parameters of fit()
         '''
 
-        self.graph = graph
+        h = graph
         # Dictionary whose values are nodes attached to only 1 other node,
         # and that value's key is the neighbor which is connected to it
         self._isolated_node_dict = {
@@ -672,9 +671,6 @@ class SSGraphKMeans(object):
         while len(self._frozen_nodes) != n_nodes:
             for cluster_id in self._randomized_clusters():
                 self._absorb_neighbors(cluster_id)
-
-        for cluster_id in self.clusters:
-            self.clusters[cluster_id].set_center(self.graph, self.node_weights)
 
         self._set_borders()
 
@@ -775,12 +771,8 @@ class SSGraphKMeans(object):
                 self._grow_cluster(cluster_id, tol)
             elif start_weight > self._ideal_cluster_weight:
                 self._shrink_cluster(cluster_id, tol)
-            print('starting an iteration inside _anneal on cluster {}'.format(cluster_id))
             self._set_borders()
 
-        # Reset cluster centers for next iteration in fit()
-        for _clstr in self.clusters:
-            self.clusters[_clstr].set_center(self.graph, self.node_weights)
         self._freeze_cluster(cluster_id)
 
     def _cluster_within_tolerance(self, cluster_id, tol):
@@ -797,42 +789,37 @@ class SSGraphKMeans(object):
         '''Grow cluster until border is exhausted or weight is within tol
         '''
 
-        _center = self.clusters[cluster_id].center
-        sorted_border = self._sort_border(cluster_id)
         # Iterate through members of the cluster's border, then add their
         # neighbors from other clusters to the current cluster
-        for border_member in sorted_border:
+        for border_member in self._max_eccentric_border_members(cluster_id):
             neighbors = self._node_neighbors(border_member)
             for neighbor in neighbors:
                 self._reassign_node(neighbor, cluster_id, border=True)
                 if self._cluster_within_tolerance(cluster_id, tol):
                     return
 
-    def _sort_border(self, cluster_id):
-        '''Create list of cluster.border sorted by distance to cluster center
+    def _max_eccentric_border_members(self, cluster_id):
+        '''Create list of maximally eccentric members of cluster's border
         '''
 
-        _center = self.clusters[cluster_id].center
-        sorted_border = sorted(
-            self.clusters[cluster_id].border,
-            key=lambda x: self.graph_distances[_center][x], reverse=True
+        subgraph = self.graph.subgraph(self.clusters[cluster_id])
+        border_eccentricities = nx.eccentricity(
+            subgraph, self.clusters[cluster_id].border
         )
-        if set(sorted_border) == self.clusters[cluster_id].border:
-            print('ok')
-        else:
-            print('fuck')
+        max_eccentricity = max(border_eccentricities.values())
+        max_ecc_border_members = [
+            border_member for border_member in border_eccentricities
+            if border_eccentricities[border_member] == max_eccentricity
+        ]
 
-        return sorted_border
-
+        return max_ecc_border_members
 
     def _shrink_cluster(self, cluster_id, tol):
         '''Shrink cluster until border is exhausted or weight is within tol
         '''
 
-        _center = self.clusters[cluster_id].center
-        sorted_border = self._sort_border(cluster_id)
         # Iterate through the
-        for border_member in sorted_border:
+        for border_member in self._max_eccentric_border_members(cluster_id):
             _new_cluster = self._preferred_cluster(border_member)
             self._reassign_node(border_member, _new_cluster)
             if self._cluster_within_tolerance(cluster_id, tol):
@@ -858,6 +845,13 @@ class SSGraphKMeans(object):
 
         return winning_cluster
 
+    def _cleanup_clusters(self):
+        '''Ensure clusters are contiguous
+        '''
+
+        for cluster in self.clusters:
+            pass
+
 class GraphCluster(object):
     '''Container for clusters in SSGraphKMeans
 
@@ -873,15 +867,11 @@ class GraphCluster(object):
     ----------
     members: See above
     border: See above
-    center: str or int
-        ID of node at the center of the cluster. Ties are broken by
-        the weights of the nodes
     '''
 
     def __init__(self, members=set(), border=set()):
         self.members = members
         self.border = border
-        self.center = None
 
     def __contains__(self, node):
         return node in self.members
@@ -917,9 +907,3 @@ class GraphCluster(object):
 
     def remove_from_border(self, node):
         self.border.discard(node)
-
-    def set_center(self, full_graph, weights):
-        '''Finds the center of this cluster, breaking ties by node weight
-        '''
-        sub_graph = full_graph.subgraph(self)
-        self.center = max(nx.center(sub_graph), key=weights.get)
