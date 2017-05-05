@@ -629,6 +629,7 @@ class SSGraphKMeans(object):
             for i, cluster_id in enumerate(self._randomized_clusters()):
                 print('Annealing cluster {}'.format(cluster_id))
                 self._anneal(cluster_id, tolerance)
+                self._reconnect_clusters()
                 self.clusters[cluster_id].set_center(graph, node_weights)
 
     def _save_fit_params(self, graph, graph_distances, node_weights):
@@ -693,12 +694,24 @@ class SSGraphKMeans(object):
         '''
 
         for border_member in self.clusters[cluster_id].border.copy():
-            neighbors = [
-                neighbor for neighbor in self.graph[border_member]
-                if self._node_clusters[neighbor] is None
-            ]
+            neighbors = self._node_neighbors(border_member)
             for neighbor in neighbors:
                 self._reassign_node(neighbor, cluster_id, border=True)
+
+    def _node_neighbors(self, node):
+        '''Determines the unfrozen neighbors of node not in node's cluster
+        '''
+
+        _this_cluster = self._node_clusters[node]
+
+        neighbors = [
+            neighbor
+            for neighbor in self.graph[node]
+            if neighbor not in self._frozen_nodes
+            if self._node_clusters[neighbor] != _this_cluster
+        ]
+
+        return neighbors
 
     def _reassign_node(self, node, cluster_id, border=False):
         '''Reassign given node to given cluster
@@ -789,11 +802,7 @@ class SSGraphKMeans(object):
         # Iterate through members of the cluster's border, then add their
         # neighbors from other clusters to the current cluster
         for border_member in sorted_border:
-            neighbors = [
-                neighbor for neighbor in self.graph[border_member]
-                if self._node_clusters[neighbor] != cluster_id
-                if neighbor not in self._frozen_nodes
-            ]
+            neighbors = self._node_neighbors(border_member)
             for neighbor in neighbors:
                 self._reassign_node(neighbor, cluster_id, border=True)
                 if self._cluster_within_tolerance(cluster_id, tol):
