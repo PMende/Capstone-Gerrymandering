@@ -603,7 +603,7 @@ class SSGraphKMeans(object):
         self.save_labels = save_labels
         self.cluster_weights = {i+1: 0 for i in range(n_clusters)}
 
-    def fit(self, graph, graph_distances, node_weights):
+    def fit(self, graph, node_weights):
         '''Fit the model on the given graph
 
         Parameters
@@ -619,7 +619,7 @@ class SSGraphKMeans(object):
             Each node label of the input graph must be a key in node_weights
         '''
 
-        self._save_fit_params(graph, graph_distances, node_weights)
+        self._save_fit_params(graph, node_weights)
 
         self._seed_clusters()
         self._grow_clusters()
@@ -627,15 +627,16 @@ class SSGraphKMeans(object):
             print('Annealing cluster weights to within {}'.format(tolerance))
             self._frozen_nodes = set() # thaw clusters for this tolerance
             for i, cluster_id in enumerate(self._randomized_clusters()):
+                if i == 1: break
                 print('Annealing cluster {}'.format(cluster_id))
                 self._anneal(cluster_id, tolerance)
-                #self._reconnect_clusters()
+                self._reconnect_clusters()
 
-    def _save_fit_params(self, graph, graph_distances, node_weights):
+    def _save_fit_params(self, graph, node_weights):
         '''Save the parameters of fit()
         '''
 
-        h = graph
+        self.graph = graph
         # Dictionary whose values are nodes attached to only 1 other node,
         # and that value's key is the neighbor which is connected to it
         self._isolated_node_dict = {
@@ -643,7 +644,6 @@ class SSGraphKMeans(object):
             for node in graph
             if len(graph[node]) == 1
         }
-        self.graph_distances = graph_distances
         self.node_weights = node_weights
         self._ideal_cluster_weight = sum(node_weights.values())/self.n_clusters
 
@@ -771,7 +771,14 @@ class SSGraphKMeans(object):
                 self._grow_cluster(cluster_id, tol)
             elif start_weight > self._ideal_cluster_weight:
                 self._shrink_cluster(cluster_id, tol)
+
+            if nx.is_connected(self.graph.subgraph(self.clusters[cluster_id])):
+                pass
+            else:
+                self._reconnect_clusters(cluster_id)
+
             self._set_borders()
+            self._reconnect_clusters()
 
         self._freeze_cluster(cluster_id)
 
@@ -840,17 +847,43 @@ class SSGraphKMeans(object):
             self._node_clusters[neighbor]
             for neighbor in node_neighbors
         ])
-
         winning_cluster = max(cluster_votes, key=cluster_votes.get)
 
         return winning_cluster
 
-    def _cleanup_clusters(self):
-        '''Ensure clusters are contiguous
+    def _reconnect_clusters(self, cluster_id=None):
+        '''Ensure cluster is contiguous by removing disconnected nodes
         '''
 
-        for cluster in self.clusters:
-            pass
+        def reconnect_cluster(cluster_id):
+            print('Reconnecting cluster {}'.format(cluster_id))
+            subgraph = self.graph.subgraph((self.clusters[cluster_id]))
+            # Sort the list of lists of nodes in each component of subgraph
+            # by the number of nodes in that component
+            component_node_lists = sorted(
+                nx.connected_components(subgraph),
+                key=len, reverse=True
+            )
+            print(component_node_lists[1:])
+            # [1:] so as to not change the main component in the subgraph
+            for component in component_node_lists[1:]:
+                for node in component:
+                    if node not in self.clusters[cluster_id].border:
+                        continue
+                    _new_cluster =  self._preferred_cluster(node)
+                    self._reassign_node(node, _new_cluster)
+
+        if cluster_id is None:
+            for _cluster in self.clusters:
+                while not nx.is_connected(
+                        self.graph.subgraph(self.clusters[_cluster])):
+                    reconnect_cluster(_cluster)
+                    self._set_borders(_cluster)
+        else:
+            while not nx.is_connected(
+                    self.graph.subgraph(self.clusters[cluster_id])):
+                reconnect_cluster(cluster_id)
+                self._set_borders(cluster_id)
 
 class GraphCluster(object):
     '''Container for clusters in SSGraphKMeans
