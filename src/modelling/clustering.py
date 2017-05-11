@@ -852,38 +852,41 @@ class SSGraphKMeans(object):
         return winning_cluster
 
     def _reconnect_clusters(self, cluster_id=None):
-        '''Ensure cluster is contiguous by removing disconnected nodes
+        '''Ensure clusters are contiguous by removing disconnected nodes
         '''
-
-        def reconnect_cluster(cluster_id):
-            print('Reconnecting cluster {}'.format(cluster_id))
-            subgraph = self.graph.subgraph((self.clusters[cluster_id]))
-            # Sort the list of lists of nodes in each component of subgraph
-            # by the number of nodes in that component
-            component_node_lists = sorted(
-                nx.connected_components(subgraph),
-                key=len, reverse=True
-            )
-            print(component_node_lists[1:])
-            # [1:] so as to not change the main component in the subgraph
-            for component in component_node_lists[1:]:
-                for node in component:
-                    if node not in self.clusters[cluster_id].border:
-                        continue
-                    _new_cluster =  self._preferred_cluster(node)
-                    self._reassign_node(node, _new_cluster)
 
         if cluster_id is None:
             for _cluster in self.clusters:
                 while not nx.is_connected(
                         self.graph.subgraph(self.clusters[_cluster])):
-                    reconnect_cluster(_cluster)
+                    self._reconnect_cluster(_cluster)
                     self._set_borders(_cluster)
         else:
             while not nx.is_connected(
                     self.graph.subgraph(self.clusters[cluster_id])):
-                reconnect_cluster(cluster_id)
+                self._reconnect_cluster(cluster_id)
                 self._set_borders(cluster_id)
+
+    def _reconnect_cluster(self, cluster_id):
+        '''Reconnect specified cluster
+        '''
+
+        print('Reconnecting cluster {}'.format(cluster_id))
+        subgraph = self.graph.subgraph((self.clusters[cluster_id]))
+        # Sort the list of lists of nodes in each component of subgraph
+        # by the number of nodes in that component
+        component_node_lists = sorted(
+            nx.connected_components(subgraph),
+            key=len, reverse=True
+        )
+
+        # [1:] so as to not change the main component in the subgraph
+        for component in component_node_lists[1:]:
+            for node in component:
+                if node not in self.clusters[cluster_id].border:
+                    continue
+                _new_cluster =  self._preferred_cluster(node)
+                self._reassign_node(node, _new_cluster)
 
 class GraphCluster(object):
     '''Container for clusters in SSGraphKMeans
@@ -900,23 +903,40 @@ class GraphCluster(object):
     ----------
     members: See above
     border: See above
+
+    Methods
+    -------
+    +: Add the given object to the cluster's member attribute
+    -: Remove given object from the cluster's member attribute
+    *: Add the given object to the border attribute of cluster
+    /: Remove given object from the border attribute of cluster
     '''
 
-    def __init__(self, members=set(), border=set()):
-        self.members = members
-        self.border = border
+    def __init__(self, members=None, border=None):
+        if members is None:
+            self.members = set()
+        else:
+            self.members = members
+        if border is None:
+            self.border = set()
+        else:
+            self.border = border
+
+    def __setattr__(self, name, value):
+        if name not in {'members', 'border'}:
+            raise AttributeError(
+                'GraphCluster object has no attribute {}'.format(name))
+        else:
+            if not isinstance(value, set):
+                raise TypeError('{} must be a set'.format(name))
+            else:
+                super(GraphCluster, self).__setattr__(name, value)
 
     def __contains__(self, node):
         return node in self.members
 
     def __iter__(self):
         return self.members.__iter__()
-
-    def __add__(self, other):
-        return self.members + other
-
-    def __sub__(self, other):
-        return self.members + other
 
     def __str__(self):
         return self.members.__str__()
@@ -927,16 +947,44 @@ class GraphCluster(object):
     def __len__(self):
         return self.members.__len__()
 
+    def __add__(self, other):
+        new_members = self.members.add(other)
+        current_border = self.border
+        return GraphCluster(new_members, current_border)
+
+    def __sub__(self, other):
+        new_members = self.members.discard(other)
+        new_border = self.border.discard(other)
+        return GraphCluster(new_members, new_border)
+
+    def __mul__(self, other):
+        new_members = self.members.add(other)
+        new_border = self.border.add(other)
+        return GraphCluster(new_members, new_border)
+
+    def __div__(self, other):
+        current_members = self.members
+        new_border = self.border.discard(other)
+        return GraphCluster(current_members, new_border)
+
     def add_member(self, node):
+        '''Add the given node to objects members - legacy method
+        '''
         self.members.add(node)
 
     def add_to_border(self, node):
+        '''Add the given node to object's border and members - legacy method
+        '''
         self.border.add(node)
         self.add_member(node)
 
     def remove_member(self, node):
+        '''Remove the given node from object's members - legacy method
+        '''
         self.members.discard(node)
         self.remove_from_border(node)
 
     def remove_from_border(self, node):
+        '''Remove the given node from object's border - legacy method
+        '''
         self.border.discard(node)
