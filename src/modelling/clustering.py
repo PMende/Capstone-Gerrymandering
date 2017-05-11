@@ -604,19 +604,17 @@ class SSGraphKMeans(object):
         self.cluster_weights = {i+1: 0 for i in range(n_clusters)}
 
     def fit(self, graph, node_weights):
-        '''Fit the model on the given graph
+        '''Fit the model on the given graph, with the given weights
 
         Parameters
         ----------
         graph: networkx Graph instance
             A graph of N nodes. Graph *must* be fully connected.
 
-        graph_distances: dict of dicts
-            graph_distances should be precomputed using
-            networkx.shortest_path_length(graph)
-
         node_weights: dict of ints or floats
-            Each node label of the input graph must be a key in node_weights
+            Keys are the names of the nodes in graph. Can have more keys
+            than nodes in graph, but each node in graph must have an
+            associated key in node_weights
         '''
 
         self._save_fit_params(graph, node_weights)
@@ -716,11 +714,11 @@ class SSGraphKMeans(object):
         current_cluster = self._node_clusters[node]
         self._node_clusters[node] = cluster_id
         if current_cluster is not None:
-            self.clusters[current_cluster].remove_member(node)
+            self.clusters[current_cluster] -= node
             self.cluster_weights[current_cluster] -= self.node_weights[node]
-        self.clusters[cluster_id].add_member(node)
+        self.clusters[cluster_id] += node
         if border:
-            self.clusters[cluster_id].add_to_border(node)
+            self.clusters[cluster_id] *= node
         self.cluster_weights[cluster_id] += self.node_weights[node]
         self._frozen_nodes.add(node)
         # Handle isolated nodes, if applicable
@@ -966,25 +964,3 @@ class GraphCluster(object):
         current_members = self.members
         new_border = self.border.discard(other)
         return GraphCluster(current_members, new_border)
-
-    def add_member(self, node):
-        '''Add the given node to objects members - legacy method
-        '''
-        self.members.add(node)
-
-    def add_to_border(self, node):
-        '''Add the given node to object's border and members - legacy method
-        '''
-        self.border.add(node)
-        self.add_member(node)
-
-    def remove_member(self, node):
-        '''Remove the given node from object's members - legacy method
-        '''
-        self.members.discard(node)
-        self.remove_from_border(node)
-
-    def remove_from_border(self, node):
-        '''Remove the given node from object's border - legacy method
-        '''
-        self.border.discard(node)
