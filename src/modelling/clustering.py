@@ -796,12 +796,46 @@ class SSGraphKMeans(object):
 
         # Iterate through members of the cluster's border, then add their
         # neighbors from other clusters to the current cluster
-        for border_member in self._max_eccentric_border_members(cluster_id):
+        for neighbor in self._max_eccentric_border_members(cluster_id):
             neighbors = self._node_neighbors(border_member)
             for neighbor in neighbors:
                 self._reassign_node(neighbor, cluster_id, border=True)
                 if self._cluster_within_tolerance(cluster_id, tol):
                     return
+
+    def _sorted_neighbors(self, cluster_id):
+        '''Create list of sorted neighbors of the given cluster
+        '''
+
+        neighbors = {
+            neighbor
+            for node in self.clusters[cluster_id].border
+            for neighbor in self.graph[node]
+            if neighbor not in self._frozen_nodes
+            if neighbor not in self.clusters[cluster_id]
+        }
+
+        return self._sort_neighbors(cluster_id, neighbors)
+
+
+    def _sort_neighbors(self, cluster_id, neighbors):
+        '''Sort the unfrozen neighbors of the given cluster
+
+        Note: not yet implemented. Sorting will likely be by increasing
+        betweenness centrality
+        '''
+
+        remainder = {
+            node for node in self.graph
+            if node not in self.clusters[cluster_id]
+        }
+        remainder_subgraph = self.graph.subgraph(remainder)
+        btwnnss = nx.betweenness_centrality()
+        rclsnss = nx.closeness_centrality()
+
+        _sorted_unfrozen = sorted(
+            neighbors, key=lambda n: (btwnnss[n])
+        )
 
     def _max_eccentric_border_members(self, cluster_id):
         '''Create list of maximally eccentric members of cluster's border
@@ -829,6 +863,11 @@ class SSGraphKMeans(object):
             self._reassign_node(border_member, _new_cluster)
             if self._cluster_within_tolerance(cluster_id, tol):
                 return
+
+    def _sorted_border(self, cluster_id):
+        '''Sort cluster's border by increasing betweenness centrality
+        '''
+        pass
 
     def _preferred_cluster(self, node):
         '''Find most common cluster of node's neighbors not in node's cluster
