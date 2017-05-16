@@ -856,7 +856,7 @@ class SSGraphKMeans(object):
         '''
 
         # Iterate through the
-        for border_member in self._max_eccentric_border_members(cluster_id):
+        for border_member in self._sorted_border(cluster_id):
             _new_cluster = self._preferred_cluster(border_member)
             self._reassign_node(border_member, _new_cluster)
             if self._cluster_within_tolerance(cluster_id, tol):
@@ -865,7 +865,12 @@ class SSGraphKMeans(object):
     def _sorted_border(self, cluster_id):
         '''Sort cluster's border by increasing betweenness centrality
         '''
-        pass
+
+        _border = self.clusters[cluster_id].border
+        border_subgraph = self.graph.subgraph(_border)
+        btwnnss = nx.betweenness_centrality(border_subgraph)
+
+        return sorted(_border, key=btwnnss.get)
 
     def _preferred_cluster(self, node):
         '''Find most common cluster of node's neighbors not in node's cluster
