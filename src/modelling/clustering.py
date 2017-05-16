@@ -628,7 +628,7 @@ class SSGraphKMeans(object):
                 if i == 1: break
                 print('Annealing cluster {}'.format(cluster_id))
                 self._anneal(cluster_id, tolerance)
-                self._reconnect_clusters()
+                # self._reconnect_clusters()
 
     def _save_fit_params(self, graph, node_weights):
         '''Save the parameters of fit()
@@ -702,7 +702,7 @@ class SSGraphKMeans(object):
             neighbor
             for neighbor in self.graph[node]
             if neighbor not in self._frozen_nodes
-            if self._node_clusters[neighbor] != _this_cluster
+            if neighbor not in self.clusters[_this_cluster]
         ]
 
         return neighbors
@@ -770,13 +770,13 @@ class SSGraphKMeans(object):
             elif start_weight > self._ideal_cluster_weight:
                 self._shrink_cluster(cluster_id, tol)
 
-            if nx.is_connected(self.graph.subgraph(self.clusters[cluster_id])):
-                pass
-            else:
-                self._reconnect_clusters(cluster_id)
+            # if nx.is_connected(self.graph.subgraph(self.clusters[cluster_id])):
+            #     pass
+            # else:
+            #     self._reconnect_clusters(cluster_id)
 
             self._set_borders()
-            self._reconnect_clusters()
+            # self._reconnect_clusters()
 
         self._freeze_cluster(cluster_id)
 
@@ -796,12 +796,10 @@ class SSGraphKMeans(object):
 
         # Iterate through members of the cluster's border, then add their
         # neighbors from other clusters to the current cluster
-        for neighbor in self._max_eccentric_border_members(cluster_id):
-            neighbors = self._node_neighbors(border_member)
-            for neighbor in neighbors:
-                self._reassign_node(neighbor, cluster_id, border=True)
-                if self._cluster_within_tolerance(cluster_id, tol):
-                    return
+        for neighbor in self._sorted_neighbors(cluster_id):
+            self._reassign_node(neighbor, cluster_id, border=True)
+            if self._cluster_within_tolerance(cluster_id, tol):
+                return
 
     def _sorted_neighbors(self, cluster_id):
         '''Create list of sorted neighbors of the given cluster
@@ -830,11 +828,11 @@ class SSGraphKMeans(object):
             if node not in self.clusters[cluster_id]
         }
         remainder_subgraph = self.graph.subgraph(remainder)
-        btwnnss = nx.betweenness_centrality()
-        rclsnss = nx.closeness_centrality()
+        btwnnss = nx.betweenness_centrality(remainder_subgraph)
+        clsnss = nx.closeness_centrality(remainder_subgraph)
 
-        _sorted_unfrozen = sorted(
-            neighbors, key=lambda n: (btwnnss[n])
+        return sorted(
+            neighbors, key=lambda n: (btwnnss[n], clsnss[n])
         )
 
     def _max_eccentric_border_members(self, cluster_id):
