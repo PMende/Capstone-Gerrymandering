@@ -669,6 +669,7 @@ class SSGraphKMeans(object):
         while len(self._frozen_nodes) != n_nodes:
             for cluster_id in self._randomized_clusters():
                 self._absorb_neighbors(cluster_id)
+                print(cluster_id, len(self.clusters[cluster_id].border))
 
         self._set_borders()
 
@@ -702,7 +703,7 @@ class SSGraphKMeans(object):
             neighbor
             for neighbor in self.graph[node]
             if neighbor not in self._frozen_nodes
-            if neighbor not in self.clusters[_this_cluster]
+            if self._node_clusters[neighbor] != _this_cluster
         ]
 
         return neighbors
@@ -714,11 +715,11 @@ class SSGraphKMeans(object):
         current_cluster = self._node_clusters[node]
         self._node_clusters[node] = cluster_id
         if current_cluster is not None:
-            self.clusters[current_cluster] -= node
+            self.clusters[current_cluster].remove_member(node)
             self.cluster_weights[current_cluster] -= self.node_weights[node]
-        self.clusters[cluster_id] += node
+        self.clusters[cluster_id].add_member(node)
         if border:
-            self.clusters[cluster_id] *= node
+            self.clusters[cluster_id].add_to_border(node)
         self.cluster_weights[cluster_id] += self.node_weights[node]
         self._frozen_nodes.add(node)
         # Handle isolated nodes, if applicable
@@ -946,10 +947,10 @@ class GraphCluster(object):
 
     Methods
     -------
-    +: Add the given object to the cluster's member attribute
-    -: Remove given object from the cluster's member attribute
-    *: Add the given object to the border attribute of cluster
-    /: Remove given object from the border attribute of cluster
+    add_member: add specified node to members
+    add_to_border: add specified node to border
+    remove_member: remove specified node from members
+    remove_from_border: remove specified node from border
     '''
 
     def __init__(self, members=None, border=None):
@@ -987,22 +988,16 @@ class GraphCluster(object):
     def __len__(self):
         return self.members.__len__()
 
-    def __add__(self, other):
-        new_members = self.members.add(other)
-        current_border = self.border
-        return GraphCluster(new_members, current_border)
+    def add_member(self, node):
+        self.members.add(node)
 
-    def __sub__(self, other):
-        new_members = self.members.discard(other)
-        new_border = self.border.discard(other)
-        return GraphCluster(new_members, new_border)
+    def add_to_border(self, node):
+        self.add_member(node)
+        self.border.add(node)
 
-    def __mul__(self, other):
-        new_members = self.members.add(other)
-        new_border = self.border.add(other)
-        return GraphCluster(new_members, new_border)
+    def remove_member(self, node):
+        self.members.discard(node)
+        self.remove_from_border(node)
 
-    def __div__(self, other):
-        current_members = self.members
-        new_border = self.border.discard(other)
-        return GraphCluster(current_members, new_border)
+    def remove_from_border(self, node):
+        self.border.discard(node)
