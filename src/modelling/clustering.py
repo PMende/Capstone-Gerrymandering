@@ -10,9 +10,11 @@ from functools import partial
 from copy import deepcopy
 from collections import (
     defaultdict,
-    Counter
+    Counter,
+    deque
 )
 import random
+from operator import itemgetter
 
 
 import numpy as np
@@ -669,7 +671,6 @@ class SSGraphKMeans(object):
         while len(self._frozen_nodes) != n_nodes:
             for cluster_id in self._randomized_clusters():
                 self._absorb_neighbors(cluster_id)
-                print(cluster_id, len(self.clusters[cluster_id].border))
 
         self._set_borders()
 
@@ -771,13 +772,8 @@ class SSGraphKMeans(object):
             elif start_weight > self._ideal_cluster_weight:
                 self._shrink_cluster(cluster_id, tol)
 
-            # if nx.is_connected(self.graph.subgraph(self.clusters[cluster_id])):
-            #     pass
-            # else:
-            #     self._reconnect_clusters(cluster_id)
-
             self._set_borders()
-            # self._reconnect_clusters()
+            self._reconnect_clusters()
 
         self._freeze_cluster(cluster_id)
 
@@ -792,36 +788,39 @@ class SSGraphKMeans(object):
         return cluster_bool
 
     def _grow_cluster(self, cluster_id, tol):
-        '''Grow cluster until border is exhausted or weight is within tol
+        '''Grow cluster until weight is within tol
         '''
 
-        # Iterate through members of the cluster's border, then add their
-        # neighbors from other clusters to the current cluster
-        for neighbor in self._sorted_neighbors(cluster_id):
-            self._reassign_node(neighbor, cluster_id, border=True)
+        for node in self._sorted_remainder(cluster_id):
+            self._reassign_node(node, cluster_id, border=True)
             if self._cluster_within_tolerance(cluster_id, tol):
                 return
 
-    def _sorted_neighbors(self, cluster_id):
-        '''Create list of sorted neighbors of the given cluster
+    def _sorted_remainder(self, cluster_id):
+        '''Create list of of the
         '''
 
-        neighbors = {
-            neighbor
-            for node in self.clusters[cluster_id].border
-            for neighbor in self.graph[node]
-            if neighbor not in self._frozen_nodes
-            if neighbor not in self.clusters[cluster_id]
+        remainder = {
+            node
+            for node in self.clusters[cluster_id]
+            if node not in self._frozen_nodes
+            if node not in self.clusters[cluster_id]
         }
 
-        return self._sort_neighbors(cluster_id, neighbors)
+        # Compute the betweenness and harmonic centrality, and the
+        # distance of each node in the remainder
+        btwnnss, hrmnc_cntrlty, dist_from_border = (
+            self._get_remainder_metrics(cluster_id)
+        )
 
+        return sorted(
+            remainder, key=lambda node: (dist_from_border[node],
+                                         btwnnss[node],
+                                         hrmnc_cntrlty[node])
+        )
 
-    def _sort_neighbors(self, cluster_id, neighbors):
-        '''Sort the unfrozen neighbors of the given cluster
-
-        Note: not yet implemented. Sorting will likely be by increasing
-        betweenness centrality
+    def _get_remainder_metrics(self, cluster_id):
+        '''Obtain various graph metrics of nodes in self.graph not in cluster
         '''
 
         remainder = {
@@ -829,28 +828,53 @@ class SSGraphKMeans(object):
             if node not in self.clusters[cluster_id]
         }
         remainder_subgraph = self.graph.subgraph(remainder)
-        btwnnss = nx.betweenness_centrality(remainder_subgraph)
-        clsnss = nx.closeness_centrality(remainder_subgraph)
+        betweenness = nx.betweenness_centrality(remainder_subgraph)
+        harmonic_centrality = nx.harmonic_centrality(remainder_subgraph)
 
-        return sorted(
-            neighbors, key=lambda n: (btwnnss[n], clsnss[n])
-        )
+        dist_from_border = self._distances_from_border(cluster_id, remainder)
 
-    def _max_eccentric_border_members(self, cluster_id):
-        '''Create list of maximally eccentric members of cluster's border
+        return betweenness, harmonic_centrality, dist_from_border
+
+    def _distances_from_border(self, cluster_id, remainder):
+        '''Get the distances
         '''
 
-        subgraph = self.graph.subgraph(self.clusters[cluster_id])
-        border_eccentricities = nx.eccentricity(
-            subgraph, self.clusters[cluster_id].border
-        )
-        max_eccentricity = max(border_eccentricities.values())
-        max_ecc_border_members = [
-            border_member for border_member in border_eccentricities
-            if border_eccentricities[border_member] == max_eccentricity
-        ]
+        border = self.clusters[cluster_id].border
+        remainder_and_border = remainder.union(border)
+        full_subgraph = self.graph.subgraph(remainder_and_border)
 
-        return max_ecc_border_members
+        contracted_subgraph, source_node = self._contract_subgraph_edges(
+            full_subgraph, border
+        )
+
+        return nx.single_source_shortest_path_length(
+            contracted_subgraph, source_node
+        )
+
+    @staticmethod
+    def _contract_subgraph_nodes(subgraph, nodes):
+        '''Contract every node of subgraph in nodes to a single node
+
+        Parameters
+        ----------
+        subgraph:
+        nodes:
+
+        Returns
+        -------
+        new_subgraph: networkx graph instance
+        source_node: ID of the node all other nodes are contracted into
+        '''
+
+        for i, node in enumerate(nodes):
+            if i == 0:
+                source_node = node
+                continue
+            elif i == 1:
+                new_subgraph = nx.contracted_nodes(subgraph, source_node, node)
+            new_subgraph = nx.contracted_nodes(new_subgraph, source_node, node)
+
+        return new_subgraph, source_node
 
     def _shrink_cluster(self, cluster_id, tol):
         '''Shrink cluster until border is exhausted or weight is within tol
@@ -892,24 +916,32 @@ class SSGraphKMeans(object):
 
         return winning_cluster
 
+    def _cluster_is_connected(self, cluster_id):
+        '''Determine if given cluster is connected
+        '''
+
+        return nx.is_connected(
+            self.graph.subgraph(self.clusters[cluster_id])
+        )
+
     def _reconnect_clusters(self, cluster_id=None):
         '''Ensure clusters are contiguous by removing disconnected nodes
         '''
 
         if cluster_id is None:
             for _cluster in self.clusters:
-                while not nx.is_connected(
-                        self.graph.subgraph(self.clusters[_cluster])):
+                while not self._cluster_is_connected(_cluster):
                     self._reconnect_cluster(_cluster)
                     self._set_borders(_cluster)
         else:
-            while not nx.is_connected(
-                    self.graph.subgraph(self.clusters[cluster_id])):
+            while not self._cluster_is_connected(_cluster):
                 self._reconnect_cluster(cluster_id)
                 self._set_borders(cluster_id)
 
+        self._set_borders()
+
     def _reconnect_cluster(self, cluster_id):
-        '''Reconnect specified cluster
+        '''Reassign nodes of the smallest disconnected components of cluster
         '''
 
         print('Reconnecting cluster {}'.format(cluster_id))
@@ -928,6 +960,7 @@ class SSGraphKMeans(object):
                     continue
                 _new_cluster =  self._preferred_cluster(node)
                 self._reassign_node(node, _new_cluster)
+
 
 class GraphCluster(object):
     '''Container for clusters in SSGraphKMeans
